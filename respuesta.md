@@ -1,73 +1,89 @@
-<file path="src-tauri/src/git_commands.rs">
-use std::process::Command;
-use serde::Serialize;
+El error es claro: Tauri v2 no soporta la propiedad `watch` en el objeto `build` del archivo `tauri.conf.json`. La forma correcta de desactivar la vigilancia de archivos en Tauri es mediante el flag `--no-watch` en el comando CLI.
 
-use crate::project_root;
+En lugar de modificar la configuración JSON, cambiaremos el script de npm para lanzar Tauri con ese flag. También restauraremos el archivo `tauri.conf.json` al estado anterior.
 
-#[derive(Serialize)]
-pub struct ExecutionResult {
-    pub stdout: String,
-    pub stderr: String,
-    #[serde(rename = "exitCode")]
-    pub exit_code: i32,
-}
+Aplica este `<file>` para corregir `package.json` añadiendo un nuevo script `tauri:dev` con `--no-watch`, y luego ejecutaremos ese script.
 
-#[tauri::command]
-pub fn snapshot_create() -> Result<String, String> {
-    let output = Command::new("git")
-        .args(["stash", "create"])
-        .current_dir(project_root())
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    if output.status.success() {
-        let hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        Ok(hash)
-    } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
-    }
-}
-
-#[tauri::command]
-pub fn snapshot_diff(hash: String) -> Result<ExecutionResult, String> {
-    let target = if hash.is_empty() { "HEAD".to_string() } else { hash };
-    let output = Command::new("git")
-        .args(["diff", &target])
-        .current_dir(project_root())
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    Ok(ExecutionResult {
-        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        exit_code: output.status.code().unwrap_or(-1),
-    })
-}
-
-#[tauri::command]
-pub fn snapshot_restore(hash: String, clean_untracked: bool) -> Result<ExecutionResult, String> {
-    // MODO DEBUG: Solo muestra el comando que se ejecutaría, sin ejecutarlo realmente
-    let target = if hash.is_empty() { "HEAD".to_string() } else { hash.clone() };
-    let root = project_root();
-    let restore_cmd = format!("git restore --source={} -- .", target);
-    let clean_cmd = if clean_untracked {
-        format!("\ngit clean -fd")
-    } else {
-        String::new()
-    };
-    let log = format!(
-        "[DEBUG] snapshot_restore:\n  hash recibido: '{}'\n  hash usado: '{}'\n  directorio: '{}'\n  comando: {}{}",
-        hash,
-        target,
-        root.display(),
-        restore_cmd,
-        clean_cmd
-    );
-
-    Ok(ExecutionResult {
-        stdout: log,
-        stderr: String::new(),
-        exit_code: 0,
-    })
+```xml
+<file path="package.json">
+{
+  "name": "controlvcode",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev --no-watch"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.9.0",
+    "@tailwindcss/vite": "^4.2.4",
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-opener": "^2",
+    "preact": "^10.25.1"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.9.3",
+    "@tauri-apps/cli": "^2",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.13",
+    "tailwindcss": "^4.2.4",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.3"
+  }
 }
 </file>
+```
+
+Y restauro `tauri.conf.json` quitando la propiedad `watch`:
+
+```xml
+<file path="src-tauri/tauri.conf.json">
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "controlvcode",
+  "version": "0.1.0",
+  "identifier": "com.luiso.controlvcode",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "controlvcode",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
+</file>
+```
+
+Ahora, detén la app actual y lanza con el nuevo comando:
+
+<cmd>
+npm run tauri:dev
+</cmd>
+
+A partir de ahora, Tauri no vigilará cambios en el backend, por lo que ninguna modificación de archivos (ni `git restore` ni ediciones) provocará reinicios. Tú controlas cuándo reiniciar manualmente.

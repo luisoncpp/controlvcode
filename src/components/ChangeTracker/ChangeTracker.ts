@@ -22,7 +22,6 @@ export class ChangeTracker {
 
     try {
       const hash = await invoke<string>("snapshot_create");
-      // Solo guardamos si el hash no está vacío (sin cambios => no hay snapshot)
       this.snapshotHash.value = hash && hash.length > 0 ? hash : null;
     } catch {
       this.gitAvailable = false;
@@ -52,8 +51,9 @@ export class ChangeTracker {
     }
     this.isRestoring.value = true;
     try {
-      await invoke("snapshot_restore", { hash, cleanUntracked });
-      this.diffOutput.value = "Cambios revertidos exitosamente.";
+      const result = await invoke<ExecutionResult>("snapshot_restore", { hash, cleanUntracked });
+      // Mostramos la salida real del backend (en modo debug saldrá el log)
+      this.diffOutput.value = result.stdout || "Sin salida del comando.";
       this.snapshotHash.value = null;
     } catch (e) {
       this.error.value = `Error al revertir: ${e}`;

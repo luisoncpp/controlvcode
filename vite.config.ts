@@ -13,8 +13,9 @@ export default defineConfig(async () => ({
     strictPort: true,
     // Desactivar Hot Module Replacement completamente
     hmr: false,
+    // Ignorar todos los cambios de archivos para evitar recargas no deseadas
     watch: {
-      ignored: ["**/src-tauri/**"],
+      ignored: ["**/*"],
     },
   },
 }));
