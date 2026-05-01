@@ -4,6 +4,7 @@ use std::process::Command;
 use std::path::{PathBuf, Path};
 use std::fs;
 use std::fmt::Write;
+use std::sync::Mutex;
 use serde::Serialize;
 
 const IGNORED_DIRS: &[&str] = &[
@@ -17,7 +18,14 @@ const IGNORED_DIRS: &[&str] = &[
     "gen",
 ];
 
+static PROJECT_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
+
 pub fn project_root() -> PathBuf {
+    if let Ok(guard) = PROJECT_DIR.lock() {
+        if let Some(dir) = guard.as_ref() {
+            return dir.clone();
+        }
+    }
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     manifest_dir.parent().unwrap_or(Path::new(".")).to_path_buf()
 }
@@ -28,6 +36,23 @@ pub struct ExecutionResult {
     pub stderr: String,
     #[serde(rename = "exitCode")]
     pub exit_code: i32,
+}
+
+#[tauri::command]
+fn get_project_dir() -> String {
+    project_root().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn set_project_dir(path: String) -> Result<String, String> {
+    let new_path = PathBuf::from(&path);
+    if !new_path.is_dir() {
+        return Err(format!("La ruta '{}' no es un directorio válido.", path));
+    }
+    if let Ok(mut guard) = PROJECT_DIR.lock() {
+        *guard = Some(new_path.clone());
+    }
+    Ok(project_root().to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -113,10 +138,13 @@ fn list_directory(path: String) -> Result<ExecutionResult, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             execute_bash_command,
             write_file,
             list_directory,
+            get_project_dir,
+            set_project_dir,
             git_commands::snapshot_create,
             git_commands::snapshot_diff,
             git_commands::snapshot_restore

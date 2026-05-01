@@ -1,4 +1,4 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { ExecutionStore } from './store/ExecutionStore';
 import { StoreContext } from './context/StoreContext';
 import { PromptInput } from './components/PromptInput';
@@ -6,6 +6,8 @@ import { QueueViewer } from './components/QueueViewer';
 import { FeedbackPanel } from './components/FeedbackPanel';
 import { ChangeTracker } from "./components/ChangeTracker/ChangeTracker";
 import { ChangeTrackerUI } from "./components/ChangeTracker/ChangeTrackerUI";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 
 const store = new ExecutionStore();
 const changeTracker = new ChangeTracker();
@@ -13,6 +15,28 @@ const changeTracker = new ChangeTracker();
 store.onPreExecute = () => changeTracker.onInstructionExecute();
 
 export function App() {
+  const [projectDir, setProjectDir] = useState("...");
+
+  useEffect(() => {
+    invoke<string>("get_project_dir").then(setProjectDir);
+  }, []);
+
+  const handleSelectProject = async () => {
+    const selected = await open({ directory: true, multiple: false });
+    if (selected) {
+      const path = typeof selected === "string" ? selected : selected;
+      const newDir = await invoke<string>("set_project_dir", { path });
+      setProjectDir(newDir);
+    }
+  };
+
+  // Abreviar ruta larga para mostrar solo las últimas dos carpetas
+  const shortDir = () => {
+    const parts = projectDir.split(/[\\/]/).filter(Boolean);
+    if (parts.length <= 2) return projectDir;
+    return ".../" + parts.slice(-2).join("/");
+  };
+
   useEffect(() => {
     changeTracker.onInstructionsChange();
   }, [store.rawInput.value]);
@@ -31,7 +55,19 @@ export function App() {
       <div className="flex h-screen bg-gray-900 text-white p-6 gap-6 overflow-hidden">
         
         <div className="w-1/3 flex flex-col h-full">
-          <h2 className="text-xl font-bold mb-4 text-gray-200">Input LLM</h2>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-lg font-semibold text-gray-300">Proyecto:</span>
+            <button
+              onClick={handleSelectProject}
+              title={`Cambiar carpeta del proyecto (actual: ${projectDir})`}
+              className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 text-blue-400 rounded border border-gray-600 transition-colors max-w-[240px]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="flex-shrink-0">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span className="truncate">{shortDir()}</span>
+            </button>
+          </div>
           <PromptInput />
         </div>
 

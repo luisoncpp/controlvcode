@@ -17,6 +17,7 @@
     "@preact/signals": "^2.9.0",
     "@tailwindcss/vite": "^4.2.4",
     "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-opener": "^2",
     "preact": "^10.25.1"
   },
