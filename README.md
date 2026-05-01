@@ -15,10 +15,13 @@ El proyecto utiliza una arquitectura de **"Humano en el bucle" (Human-in-the-loo
 
 ## ✨ Características actuales
 
-*   **Parser Inteligente:** Detecta automáticamente bloques `<cmd>` dentro de cualquier texto pegado.
+*   **Parser Inteligente:** Detecta automáticamente bloques `<cmd>`, `<file>` y `<tree>` dentro de cualquier texto pegado. Ignora etiquetas mencionadas dentro de backticks inline (`` `...` ``) para evitar ejecuciones accidentales.
+*   **Escritura de Archivos:** Soporta la etiqueta `<file>` para crear o sobrescribir archivos directamente desde la respuesta del LLM.
+*   **Exploración de Directorios:** Soporta la etiqueta `<tree>` para mostrar la estructura de carpetas del proyecto.
 *   **Cola Secuencial:** Los comandos se organizan en tarjetas de acción. Solo se permite la ejecución del comando actual para evitar condiciones de carrera o desastres en cascada.
 *   **Agnóstico a la Terminal:** Configurado para usar `cmd.exe` en Windows con soporte para UTF-8 (`chcp 65001`).
 *   **Feedback Loop:** Genera automáticamente un reporte en XML con los resultados de `stdout`, `stderr` y códigos de salida para que el LLM pueda corregir sus propios errores.
+*   **Diff Visual Estilo GitHub:** Panel de control de cambios con diff coloreado, números de línea, headers de hunk y secciones de contexto colapsables.
 
 ---
 
@@ -42,11 +45,16 @@ El proyecto utiliza una arquitectura de **"Humano en el bucle" (Human-in-the-loo
     npm run tauri dev
     ```
 
+3.  **Ejecutar tests:**
+    ```bash
+    npm run test
+    ```
+
 ---
 
 ## 📖 Protocolo de Etiquetas
 
-Actualmente, el sistema reconoce las siguientes etiquetas:
+El sistema reconoce las siguientes etiquetas:
 
 ### `<cmd>`
 Ejecuta un comando en la terminal local.
@@ -54,22 +62,12 @@ Ejecuta un comando en la terminal local.
 <cmd>npm install lucide-preact</cmd>
 ```
 
----
+### `<file>`
+Escribe contenido directamente en un archivo del proyecto.
+```xml
+<file path="src/components/Button.tsx">
+import { h } from 'preact';
 
-## 🗺️ Hoja de Ruta (Próximamente)
-
-El objetivo es convertir este puente en un agente de desarrollo completo mediante la implementación de:
-
-*   **`<file path="...">`**: Escritura directa de archivos para automatizar refactorizaciones.
-*   **`<read path="...">`**: Permite al agente leer el contenido de archivos locales para ganar contexto.
-*   **`<tree path="...">`**: Proporciona al agente una visión de la estructura de directorios del proyecto.
-
----
-
-## 🛡️ Seguridad
-A diferencia de los agentes autónomos que se ejecutan en "modo Dios", **ControlVCode** requiere una revisión humana antes de cada ejecución. Cada comando es visible y editable antes de presionar el botón de "Ejecutar".
-
----
-
-> **Nota:** Este proyecto nació para combatir la fatiga del "copiar y pegar" y para dar superpoderes locales a modelos de lenguaje remotos.
-
+export function Button() {
+  return <button>Click me</button>;
+}
