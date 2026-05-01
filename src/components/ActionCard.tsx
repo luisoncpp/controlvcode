@@ -3,9 +3,8 @@ import { useStore } from '../context/StoreContext';
 export function ActionCard({ index }: { index: number }) {
   const store = useStore();
   const node = store.nodes.value[index];
-  const isActive = index === store.activeIndex;
+  const isActive = index === store.activeIndex.value;
 
-  // Estilos dinámicos según el estado
   const borderColors = {
     pending: isActive ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'border-gray-700',
     running: 'border-yellow-500',
@@ -43,7 +42,6 @@ export function ActionCard({ index }: { index: number }) {
         {node.payload}
       </pre>
 
-      {/* Panel de Salida */}
       {node.result && (
         <div className="mt-3 bg-black rounded p-3 text-xs font-mono overflow-x-auto max-h-48 overflow-y-auto">
           {node.result.stdout && <div className="text-green-400 whitespace-pre-wrap">{node.result.stdout}</div>}

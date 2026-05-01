@@ -1,22 +1,15 @@
-import { signal, Signal, computed } from "@preact/signals";
+import { signal, computed } from "@preact/signals";
 import { invoke } from "@tauri-apps/api/core";
 import { ActionNode, ExecutionResult } from "../types";
 import { LLMParser } from "./LLMParser";
 
 export class ExecutionStore {
-  public rawInput: Signal<string>;
-  public nodes: Signal<ActionNode[]>;
-  public feedbackPrompt: Signal<string>;
-
-  constructor() {
-    this.rawInput = signal("");
-    this.nodes = signal([]);
-    this.feedbackPrompt = computed(() => this.generateFeedback());
-  }
-
-  public get activeIndex(): number {
-    return this.nodes.value.findIndex(n => n.status === 'pending' || n.status === 'error');
-  }
+  public rawInput = signal("");
+  public nodes = signal<ActionNode[]>([]);
+  public feedbackPrompt = computed(() => this.generateFeedback());
+  public activeIndex = computed(() =>
+    this.nodes.value.findIndex(n => n.status === 'pending' || n.status === 'error')
+  );
 
   public processInput(text: string) {
     this.rawInput.value = text;
@@ -30,7 +23,7 @@ export class ExecutionStore {
     if (node.status === 'running') return;
 
     node.status = 'running';
-    this.nodes.value = nodes; 
+    this.nodes.value = [...nodes]; 
 
     try {
       let result: ExecutionResult;
@@ -49,7 +42,7 @@ export class ExecutionStore {
       node.result = { stdout: '', stderr: String(e), exitCode: -1 };
     }
 
-    this.nodes.value = [...nodes]; 
+    this.nodes.value = [...nodes];
   }
 
   public skipNode(index: number) {
