@@ -1,4 +1,5 @@
 import { ChangeTracker } from "./ChangeTracker";
+import { DiffViewer } from "../DiffViewer";
 
 export function ChangeTrackerUI({ tracker }: { tracker: ChangeTracker }) {
   return (
@@ -26,11 +27,15 @@ export function ChangeTrackerUI({ tracker }: { tracker: ChangeTracker }) {
           </button>
         </div>
       </div>
-      <pre className="p-4 overflow-x-auto text-xs text-gray-400 font-mono max-h-96 overflow-y-auto whitespace-pre-wrap">
-        {tracker.diffOutput.value || "El diff aparecerá aquí cuando finalice la ejecución de la cola."}
-      </pre>
+
+      <div className="max-h-[32rem] overflow-y-auto bg-[#0d1117] rounded-b">
+        <DiffViewer diff={tracker.diffOutput.value} />
+      </div>
+
       {tracker.error.value && (
-        <div className="p-2 text-red-400 text-sm border-t border-gray-700">{tracker.error.value}</div>
+        <div className="p-2 text-red-400 text-sm border-t border-gray-700">
+          {tracker.error.value}
+        </div>
       )}
     </div>
   );
