@@ -203,7 +203,7 @@ export function ChangeTrackerUI({ tracker }: { tracker: ChangeTracker }) {
           <button
             disabled={!tracker.snapshotHash.value || tracker.isRestoring.value}
             onClick={() => {
-              if (confirm("¿Revertir TODOS los cambios y eliminar archivos nuevos?")) {
+              if (confirm("¿Revertir todos los cambios en archivos pre-existentes?")) {
                 tracker.revert(true);
               }
             }}

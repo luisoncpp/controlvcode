@@ -24,6 +24,8 @@ npm init -y
 npm install preact @preact/signals
 </cmd>"
 
+* Cada comando se ejecuta por separando desde la raiz del proyecto, `cd` no sirve.
+
 ### 2. Flujo Secuencial y Dependencias
 *   Presenta los comandos en el orden lógico en que deben ser ejecutados.
 *   Si un comando depende del éxito del anterior, lístalos por separado para que yo pueda autorizarlos uno a uno.
