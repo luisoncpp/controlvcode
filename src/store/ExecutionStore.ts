@@ -10,6 +10,7 @@ export class ExecutionStore {
   public activeIndex = computed(() =>
     this.nodes.value.findIndex(n => n.status === 'pending' || n.status === 'error')
   );
+  public autoCopy = signal(false);
 
   public processInput(text: string) {
     this.rawInput.value = text;
@@ -31,6 +32,8 @@ export class ExecutionStore {
         result = await invoke('execute_bash_command', { command: node.payload });
       } else if (node.type === 'file') {
         result = await invoke('write_file', { path: node.payload, content: node.content ?? '' });
+      } else if (node.type === 'tree') {
+        result = await invoke('list_directory', { path: node.payload });
       } else {
         throw new Error(`Tipo de acción desconocido: ${node.type}`);
       }
@@ -43,12 +46,29 @@ export class ExecutionStore {
     }
 
     this.nodes.value = [...nodes];
+    this.tryAutoCopy();
   }
 
   public skipNode(index: number) {
     const nodes = [...this.nodes.value];
     nodes[index].status = 'skipped';
     this.nodes.value = nodes;
+    this.tryAutoCopy();
+  }
+
+  public async copyFeedbackToClipboard(): Promise<boolean> {
+    try {
+      await window.navigator.clipboard.writeText(this.feedbackPrompt.value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private tryAutoCopy() {
+    if (this.autoCopy.value) {
+      this.copyFeedbackToClipboard();
+    }
   }
 
   private generateFeedback(): string {

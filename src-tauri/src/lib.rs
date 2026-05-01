@@ -1,10 +1,21 @@
 use std::process::Command;
 use std::path::{PathBuf, Path};
 use std::fs;
+use std::fmt::Write;
 use serde::Serialize;
 
+const IGNORED_DIRS: &[&str] = &[
+    ".git",
+    "node_modules",
+    "target",
+    ".vscode",
+    "__pycache__",
+    ".idea",
+    "dist",
+    "gen",
+];
+
 fn project_root() -> PathBuf {
-    // En desarrollo, CARGO_MANIFEST_DIR es src-tauri, subimos un nivel a la raíz
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     manifest_dir.parent().unwrap_or(Path::new(".")).to_path_buf()
 }
@@ -48,11 +59,59 @@ fn write_file(path: String, content: String) -> Result<ExecutionResult, String> 
     })
 }
 
+fn build_tree(dir: &Path, prefix: &str, output: &mut String) -> std::io::Result<()> {
+    if dir.is_dir() {
+        let mut entries: Vec<_> = std::fs::read_dir(dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                let name = e.file_name().to_string_lossy().to_lowercase();
+                !IGNORED_DIRS.contains(&name.as_str())
+            })
+            .collect();
+        entries.sort_by_key(|e| e.file_name());
+        let count = entries.len();
+        for (i, entry) in entries.iter().enumerate() {
+            let is_last = i == count - 1;
+            let connector = if is_last { "└── " } else { "├── " };
+            let child_prefix = if is_last { "    " } else { "│   " };
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if path.is_dir() {
+                let _ = writeln!(output, "{}{}{}/", prefix, connector, name);
+                build_tree(&path, &format!("{}{}", prefix, child_prefix), output)?;
+            } else {
+                let _ = writeln!(output, "{}{}{}", prefix, connector, name);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn list_directory(path: String) -> Result<ExecutionResult, String> {
+    let dir_path = project_root().join(&path);
+    if !dir_path.exists() {
+        return Err(format!("La ruta '{}' no existe.", path));
+    }
+    if !dir_path.is_dir() {
+        return Err(format!("'{}' no es un directorio.", path));
+    }
+    let mut output = String::new();
+    let root_name = dir_path.file_name().unwrap_or_default().to_string_lossy();
+    writeln!(&mut output, "{}/", root_name).map_err(|e| e.to_string())?;
+    build_tree(&dir_path, "", &mut output).map_err(|e| e.to_string())?;
+    Ok(ExecutionResult {
+        stdout: output,
+        stderr: String::new(),
+        exit_code: 0,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![execute_bash_command, write_file])
+        .invoke_handler(tauri::generate_handler![execute_bash_command, write_file, list_directory])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
