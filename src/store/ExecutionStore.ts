@@ -11,6 +11,7 @@ export class ExecutionStore {
     this.nodes.value.findIndex(n => n.status === 'pending' || n.status === 'error')
   );
   public autoCopy = signal(false);
+  public onPreExecute: (() => void) | null = null;
 
   public processInput(text: string) {
     this.rawInput.value = text;
@@ -22,6 +23,8 @@ export class ExecutionStore {
     const node = nodes[index];
     
     if (node.status === 'running') return;
+
+    this.onPreExecute?.();
 
     node.status = 'running';
     this.nodes.value = [...nodes]; 

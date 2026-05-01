@@ -1,12 +1,31 @@
+import { useEffect } from "preact/hooks";
 import { ExecutionStore } from './store/ExecutionStore';
 import { StoreContext } from './context/StoreContext';
 import { PromptInput } from './components/PromptInput';
 import { QueueViewer } from './components/QueueViewer';
 import { FeedbackPanel } from './components/FeedbackPanel';
+import { ChangeTracker } from "./components/ChangeTracker/ChangeTracker";
+import { ChangeTrackerUI } from "./components/ChangeTracker/ChangeTrackerUI";
 
 const store = new ExecutionStore();
+const changeTracker = new ChangeTracker();
+
+store.onPreExecute = () => changeTracker.onInstructionExecute();
 
 export function App() {
+  useEffect(() => {
+    changeTracker.onInstructionsChange();
+  }, [store.rawInput.value]);
+
+  useEffect(() => {
+    const pendingOrRunning = store.nodes.value.filter(
+      n => n.status === "pending" || n.status === "running"
+    ).length;
+    if (pendingOrRunning === 0 && changeTracker.snapshotHash.value) {
+      changeTracker.computeDiff();
+    }
+  }, [store.nodes.value, changeTracker.snapshotHash.value]);
+
   return (
     <StoreContext.Provider value={store}>
       <div className="flex h-screen bg-gray-900 text-white p-6 gap-6 overflow-hidden">
@@ -19,7 +38,6 @@ export function App() {
         <div className="w-2/3 flex flex-col h-full">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-200">Cola de Comandos</h2>
-            
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <span className="text-sm text-gray-400">Autocopiar</span>
               <div className="relative">
@@ -38,6 +56,7 @@ export function App() {
           <div className="flex-1 overflow-y-auto pr-2 pb-4">
             <QueueViewer />
             <FeedbackPanel />
+            <ChangeTrackerUI tracker={changeTracker} />
           </div>
         </div>
 

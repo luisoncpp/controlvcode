@@ -1,3 +1,5 @@
+pub mod git_commands;
+
 use std::process::Command;
 use std::path::{PathBuf, Path};
 use std::fs;
@@ -15,7 +17,7 @@ const IGNORED_DIRS: &[&str] = &[
     "gen",
 ];
 
-fn project_root() -> PathBuf {
+pub fn project_root() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     manifest_dir.parent().unwrap_or(Path::new(".")).to_path_buf()
 }
@@ -111,7 +113,14 @@ fn list_directory(path: String) -> Result<ExecutionResult, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![execute_bash_command, write_file, list_directory])
+        .invoke_handler(tauri::generate_handler![
+            execute_bash_command,
+            write_file,
+            list_directory,
+            git_commands::snapshot_create,
+            git_commands::snapshot_diff,
+            git_commands::snapshot_restore
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

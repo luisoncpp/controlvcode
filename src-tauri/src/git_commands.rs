@@ -1,4 +1,3 @@
-<file path="src-tauri/src/git_commands.rs">
 use std::process::Command;
 use serde::Serialize;
 
@@ -30,6 +29,7 @@ pub fn snapshot_create() -> Result<String, String> {
 
 #[tauri::command]
 pub fn snapshot_diff(hash: String) -> Result<ExecutionResult, String> {
+    // Si el hash está vacío, no debería llamarse; pero si ocurre, comparamos contra HEAD
     let target = if hash.is_empty() { "HEAD".to_string() } else { hash };
     let output = Command::new("git")
         .args(["diff", &target])
@@ -46,28 +46,35 @@ pub fn snapshot_diff(hash: String) -> Result<ExecutionResult, String> {
 
 #[tauri::command]
 pub fn snapshot_restore(hash: String, clean_untracked: bool) -> Result<ExecutionResult, String> {
-    // MODO DEBUG: Solo muestra el comando que se ejecutaría, sin ejecutarlo realmente
-    let target = if hash.is_empty() { "HEAD".to_string() } else { hash.clone() };
-    let root = project_root();
-    let restore_cmd = format!("git restore --source={} -- .", target);
-    let clean_cmd = if clean_untracked {
-        format!("\ngit clean -fd")
-    } else {
-        String::new()
-    };
-    let log = format!(
-        "[DEBUG] snapshot_restore:\n  hash recibido: '{}'\n  hash usado: '{}'\n  directorio: '{}'\n  comando: {}{}",
-        hash,
-        target,
-        root.display(),
-        restore_cmd,
-        clean_cmd
-    );
+    if hash.is_empty() {
+        return Err("No se puede revertir porque el snapshot está vacío (no había cambios)".into());
+    }
+    let restore = Command::new("git")
+        .args(["restore", "--source", &hash, "--", "."])
+        .current_dir(project_root())
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let mut combined_stdout = String::from_utf8_lossy(&restore.stdout).to_string();
+    let mut combined_stderr = String::from_utf8_lossy(&restore.stderr).to_string();
+    let mut exit_code = restore.status.code().unwrap_or(-1);
+
+    if clean_untracked && exit_code == 0 {
+        let clean = Command::new("git")
+            .args(["clean", "-fd"])
+            .current_dir(project_root())
+            .output()
+            .map_err(|e| e.to_string())?;
+        combined_stdout.push_str(&String::from_utf8_lossy(&clean.stdout));
+        combined_stderr.push_str(&String::from_utf8_lossy(&clean.stderr));
+        if exit_code == 0 {
+            exit_code = clean.status.code().unwrap_or(-1);
+        }
+    }
 
     Ok(ExecutionResult {
-        stdout: log,
-        stderr: String::new(),
-        exit_code: 0,
+        stdout: combined_stdout,
+        stderr: combined_stderr,
+        exit_code,
     })
 }
-</file>
