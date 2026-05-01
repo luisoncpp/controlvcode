@@ -3,11 +3,11 @@ import { ActionNode } from '../types';
 export class LLMParser {
   static parse(rawText: string): ActionNode[] {
     const nodes: ActionNode[] = [];
-    // Busca todo lo que esté entre <cmd> y </cmd>
-    const regex = /<cmd>([\s\S]*?)<\/cmd>/g;
-    let match;
 
-    while ((match = regex.exec(rawText)) !== null) {
+    // Detectar <cmd>...</cmd>
+    const cmdRegex = /<cmd>([\s\S]*?)<\/cmd>/g;
+    let match;
+    while ((match = cmdRegex.exec(rawText)) !== null) {
       nodes.push({
         id: crypto.randomUUID(),
         type: 'cmd',
@@ -16,6 +16,20 @@ export class LLMParser {
         result: null
       });
     }
+
+    // Detectar el tag file path="..." ... y su cierre
+    const fileRegex = /<file\s+[^>]*path="([^"]+)"[^>]*>\s*([\s\S]*?)<\/file>/g;
+    while ((match = fileRegex.exec(rawText)) !== null) {
+      nodes.push({
+        id: crypto.randomUUID(),
+        type: 'file',
+        payload: match[1].trim(),
+        content: match[2],
+        status: 'pending',
+        result: null
+      });
+    }
+
     return nodes;
   }
 }

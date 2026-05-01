@@ -33,12 +33,16 @@ export class ExecutionStore {
     this.nodes.value = nodes; 
 
     try {
-      const result: ExecutionResult = await invoke('execute_bash_command', { 
-        command: node.payload 
-      });
+      let result: ExecutionResult;
+      if (node.type === 'cmd') {
+        result = await invoke('execute_bash_command', { command: node.payload });
+      } else if (node.type === 'file') {
+        result = await invoke('write_file', { path: node.payload, content: node.content ?? '' });
+      } else {
+        throw new Error(`Tipo de acción desconocido: ${node.type}`);
+      }
       
       node.result = result;
-      // Ahora result.exitCode sí existe y vale 0 si es exitoso
       node.status = result.exitCode === 0 ? 'success' : 'error';
     } catch (e) {
       node.status = 'error';
@@ -63,7 +67,6 @@ export class ExecutionStore {
       const { payload, result } = node;
       const status = result!.exitCode === 0 ? "success" : "error";
       
-      // Escapamos las comillas dobles para que el XML sea válido
       const safePayload = payload.replace(/"/g, '&quot;');
       
       xml += `  <result command="${safePayload}" status="${status}">\n`;
