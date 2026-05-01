@@ -1,89 +1,102 @@
-El error es claro: Tauri v2 no soporta la propiedad `watch` en el objeto `build` del archivo `tauri.conf.json`. La forma correcta de desactivar la vigilancia de archivos en Tauri es mediante el flag `--no-watch` en el comando CLI.
+<file path="src/store/LLMParser.ts">
+import type { ActionNode } from '../types';
 
-En lugar de modificar la configuración JSON, cambiaremos el script de npm para lanzar Tauri con ese flag. También restauraremos el archivo `tauri.conf.json` al estado anterior.
-
-Aplica este `<file>` para corregir `package.json` añadiendo un nuevo script `tauri:dev` con `--no-watch`, y luego ejecutaremos ese script.
-
-```xml
-<file path="package.json">
-{
-  "name": "controlvcode",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri",
-    "tauri:dev": "tauri dev --no-watch"
-  },
-  "dependencies": {
-    "@preact/signals": "^2.9.0",
-    "@tailwindcss/vite": "^4.2.4",
-    "@tauri-apps/api": "^2.11.0",
-    "@tauri-apps/plugin-opener": "^2",
-    "preact": "^10.25.1"
-  },
-  "devDependencies": {
-    "@preact/preset-vite": "^2.9.3",
-    "@tauri-apps/cli": "^2",
-    "autoprefixer": "^10.5.0",
-    "postcss": "^8.5.13",
-    "tailwindcss": "^4.2.4",
-    "typescript": "~5.6.2",
-    "vite": "^6.0.3"
-  }
+interface Range {
+  start: number;
+  end: number;
 }
-</file>
-```
 
-Y restauro `tauri.conf.json` quitando la propiedad `watch`:
+// ============================================================================
+// Funciones puras — extraídas para testabilidad
+// ============================================================================
 
-```xml
-<file path="src-tauri/tauri.conf.json">
-{
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "controlvcode",
-  "version": "0.1.0",
-  "identifier": "com.luiso.controlvcode",
-  "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "windows": [
-      {
-        "title": "controlvcode",
-        "width": 800,
-        "height": 600
+export function getInlineBacktickRanges(text: string): Range[] {
+  const ranges: Range[] = [];
+  let i = 0;
+
+  while (i < text.length) {
+    const isBlockStart = i + 2 < text.length && text[i] === '`' && text[i + 1] === '`' && text[i + 2] === '`';
+    if (isBlockStart) {
+      i += 3;
+      while (i + 2 < text.length) {
+        const isBlockEnd = text[i] === '`' && text[i + 1] === '`' && text[i + 2] === '`';
+        if (isBlockEnd) {
+          i += 3;
+          break;
+        }
+        i++;
       }
-    ],
-    "security": {
-      "csp": null
+    } else if (text[i] === '`') {
+      const start = i;
+      i++;
+      while (i < text.length && text[i] !== '`') {
+        i++;
+      }
+      if (i < text.length) {
+        i++;
+        ranges.push({ start, end: i });
+      }
+    } else {
+      i++;
     }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
+  }
+
+  return ranges;
+}
+
+function isProtected(index: number, ranges: Range[]): boolean {
+  return ranges.some(r => index >= r.start && index < r.end);
+}
+
+interface ExtractedNode {
+  type: ActionNode['type'];
+  payload: string;
+  content?: string;
+}
+
+export function extractNodes(rawText: string): ExtractedNode[] {
+  const protectedRanges = getInlineBacktickRanges(rawText);
+  const matches: Array<{ index: number; node: ExtractedNode }> = [];
+
+  // Regex unificado que captura los tres tipos de tag
+  const unifiedRegex = /<cmd>([\s\S]*?)<\/cmd>|<file\s+[^>]*path="([^"]+)"[^>]*>\s*([\s\S]*?)<\/file>|<tree\s+path="([^"]+)"\s*\/?>\s*(?:<\/tree>)?/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = unifiedRegex.exec(rawText)) !== null) {
+    if (isProtected(match.index, protectedRanges)) continue;
+
+    if (match[1] !== undefined) {
+      // Grupo 1: cmd
+      matches.push({ index: match.index, node: { type: 'cmd', payload: match[1].trim() } });
+    } else if (match[2] !== undefined) {
+      // Grupos 2 y 3: file
+      matches.push({ index: match.index, node: { type: 'file', payload: match[2].trim(), content: match[3] } });
+    } else if (match[4] !== undefined) {
+      // Grupo 4: tree
+      matches.push({ index: match.index, node: { type: 'tree', payload: match[4].trim() } });
+    }
+  }
+
+  // Ordenar por posición de aparición
+  matches.sort((a, b) => a.index - b.index);
+
+  return matches.map(m => m.node);
+}
+
+// ============================================================================
+// Clase pública — fachada delgada
+// ============================================================================
+
+export class LLMParser {
+  static parse(rawText: string): ActionNode[] {
+    return extractNodes(rawText).map(node => ({
+      id: crypto.randomUUID(),
+      type: node.type,
+      payload: node.payload,
+      content: node.content,
+      status: 'pending',
+      result: null
+    }));
   }
 }
 </file>
-```
-
-Ahora, detén la app actual y lanza con el nuevo comando:
-
-<cmd>
-npm run tauri:dev
-</cmd>
-
-A partir de ahora, Tauri no vigilará cambios en el backend, por lo que ninguna modificación de archivos (ni `git restore` ni ediciones) provocará reinicios. Tú controlas cuándo reiniciar manualmente.

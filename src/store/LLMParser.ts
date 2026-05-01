@@ -9,11 +9,6 @@ interface Range {
 // Funciones puras — extraídas para testabilidad
 // ============================================================================
 
-/**
- * Recorre el texto carácter por carácter para identificar:
- * - Bloques markdown (``` ... ```): se saltan por completo, no protegen nada.
- * - Backticks inline (`...`): se registran como rangos protegidos.
- */
 export function getInlineBacktickRanges(text: string): Range[] {
   const ranges: Range[] = [];
   let i = 0;
@@ -37,7 +32,7 @@ export function getInlineBacktickRanges(text: string): Range[] {
         i++;
       }
       if (i < text.length) {
-        i++; // consume closing backtick
+        i++;
         ranges.push({ start, end: i });
       }
     } else {
@@ -59,29 +54,32 @@ interface ExtractedNode {
 }
 
 export function extractNodes(rawText: string): ExtractedNode[] {
-  const nodes: ExtractedNode[] = [];
   const protectedRanges = getInlineBacktickRanges(rawText);
+  const matches: Array<{ index: number; node: ExtractedNode }> = [];
 
-  const cmdRegex = /<cmd>([\s\S]*?)<\/cmd>/g;
+  // Regex unificado que captura los tres tipos de tag
+  const unifiedRegex = /<cmd>([\s\S]*?)<\/cmd>|<file\s+[^>]*path="([^"]+)"[^>]*>\s*([\s\S]*?)<\/file>|<tree\s+path="([^"]+)"\s*\/?>\s*(?:<\/tree>)?/g;
   let match: RegExpExecArray | null;
-  while ((match = cmdRegex.exec(rawText)) !== null) {
+
+  while ((match = unifiedRegex.exec(rawText)) !== null) {
     if (isProtected(match.index, protectedRanges)) continue;
-    nodes.push({ type: 'cmd', payload: match[1].trim() });
+
+    if (match[1] !== undefined) {
+      // Grupo 1: cmd
+      matches.push({ index: match.index, node: { type: 'cmd', payload: match[1].trim() } });
+    } else if (match[2] !== undefined) {
+      // Grupos 2 y 3: file
+      matches.push({ index: match.index, node: { type: 'file', payload: match[2].trim(), content: match[3] } });
+    } else if (match[4] !== undefined) {
+      // Grupo 4: tree
+      matches.push({ index: match.index, node: { type: 'tree', payload: match[4].trim() } });
+    }
   }
 
-  const fileRegex = /<file\s+[^>]*path="([^"]+)"[^>]*>\s*([\s\S]*?)<\/file>/g;
-  while ((match = fileRegex.exec(rawText)) !== null) {
-    if (isProtected(match.index, protectedRanges)) continue;
-    nodes.push({ type: 'file', payload: match[1].trim(), content: match[2] });
-  }
+  // Ordenar por posición de aparición
+  matches.sort((a, b) => a.index - b.index);
 
-  const treeRegex = /<tree\s+path="([^"]+)"\s*\/?>\s*(?:<\/tree>)?/g;
-  while ((match = treeRegex.exec(rawText)) !== null) {
-    if (isProtected(match.index, protectedRanges)) continue;
-    nodes.push({ type: 'tree', payload: match[1].trim() });
-  }
-
-  return nodes;
+  return matches.map(m => m.node);
 }
 
 // ============================================================================
