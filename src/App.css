@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Un fondo oscuro por defecto para cuidar la vista */
+body {
+  @apply bg-gray-900 text-white;
+}
