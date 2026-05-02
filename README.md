@@ -71,3 +71,24 @@ import { h } from 'preact';
 export function Button() {
   return <button>Click me</button>;
 }
+</file>
+```
+
+### `<tree>`
+Muestra la estructura de directorios a partir de la ruta indicada.
+`<tree path="src/components" />`
+
+---
+
+## 🗺️ Hoja de Ruta (Próximamente)
+
+*   **`<read path="...">`**: Permite al agente leer el contenido de archivos locales para ganar contexto sin necesidad de comandos de terminal.
+
+---
+
+## 🛡️ Seguridad
+A diferencia de los agentes autónomos que se ejecutan en "modo Dios", **ControlVCode** requiere una revisión humana antes de cada ejecución. Cada comando es visible y editable antes de presionar el botón de "Ejecutar".
+
+---
+
+> **Nota:** Este proyecto nació para combatir la fatiga del "copiar y pegar" y para dar superpoderes locales a modelos de lenguaje remotos.
