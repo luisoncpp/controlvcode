@@ -1,9 +1,7 @@
 import { signal, computed } from "@preact/signals";
-import { invoke } from "@tauri-apps/api/core";
 import { ActionNode, ExecutionResult } from "../types";
 import { LLMParser } from "./LLMParser";
-import { executeRead, ReadOptions } from "./Commands/readCommand";
-import { executeReplace, ReplaceOptions } from "./Commands/replaceCommand";
+import { strategies } from "./Strategies";
 
 export class ExecutionStore {
   public rawInput = signal("");
@@ -32,36 +30,11 @@ export class ExecutionStore {
     this.nodes.value = [...nodes]; 
 
     try {
-      let result: ExecutionResult;
-      if (node.type === 'cmd') {
-        result = await invoke('execute_bash_command', { command: node.payload });
-      } else if (node.type === 'file') {
-        result = await invoke('write_file', { path: node.payload, content: node.content ?? '' });
-      } else if (node.type === 'tree') {
-        result = await invoke('list_directory', { path: node.payload });
-      } else if (node.type === 'read') {
-        const opts: ReadOptions = {};
-        if (node.options) {
-          if (node.options.start) opts.start = parseInt(node.options.start, 10);
-          if (node.options.end) opts.end = parseInt(node.options.end, 10);
-          if (node.options.line) opts.line = parseInt(node.options.line, 10);
-          if (node.options.count) opts.count = parseInt(node.options.count, 10);
-        }
-        const output = await executeRead(node.payload, opts);
-        result = { stdout: output, stderr: '', exitCode: 0 };
-      } else if (node.type === 'replace') {
-        const ropts: ReplaceOptions = {};
-        if (node.options?.occurrence === 'all') ropts.occurrence = 'all';
-        const output = await executeReplace(
-          node.payload,
-          node.content ?? '',
-          node.newContent ?? '',
-          ropts
-        );
-        result = { stdout: output, stderr: '', exitCode: 0 };
-      } else {
+      const strategy = strategies[node.type];
+      if (!strategy) {
         throw new Error(`Tipo de acción desconocido: ${node.type}`);
       }
+      const result = await strategy.execute(node);
       
       node.result = result;
       node.status = result.exitCode === 0 ? 'success' : 'error';
@@ -105,7 +78,7 @@ export class ExecutionStore {
       const { payload, result } = node;
       const status = result!.exitCode === 0 ? "success" : "error";
       
-      const safePayload = payload.replace(/"/g, '&quot;');
+      const safePayload = payload.replace(/"/g, '"');
       
       xml += `  <result command="${safePayload}" status="${status}">\n`;
       if (result!.stdout) xml += `    <stdout>\n${result!.stdout}\n    </stdout>\n`;
