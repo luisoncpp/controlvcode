@@ -21,7 +21,11 @@ Dentro de `<cmd>` y `<file>`, usa entidades XML para representar caracteres que 
 *   `<` → `&lt;`
 *   `>` → `&gt;`
 *   `&` → `&amp;`
-*   `"` → `"`
+*   `"` → `&quot;`
+*   `&lt;` → `&amp;lt;`
+*   `&gt;` → `&amp;gt;`
+*   `&amp;` → `&amp;amp;`
+*   `&quot;` → `&amp;quot;`
 
 Ejemplo correcto:
 ```xml

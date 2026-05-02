@@ -83,6 +83,10 @@ describe("unescapeXml", () => {
   it("no modifica texto sin entidades", () => {
     expect(unescapeXml("hola mundo")).toBe("hola mundo");
   });
+
+  it("convierte 2 pasadas", () => {
+    expect(unescapeXml("a &amp;lt; b")).toBe("a &lt; b");
+  });  
 });
 
 // =============================================================================
