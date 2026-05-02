@@ -101,7 +101,7 @@ export function Button() {
 
 Lo que está dentro de las etiquetas sustituye las secuencias de escape `&lt;`, `&gt;`, `&amp;` y `&quot;` (no es obligatorio usarlas pero pueden servir para escribir un `</file>` adentro de un archivo, por ejemplo(con `&lt;/file&gt;`)).
 
-Puedes usar bloques `CDATA`, incluso permiten escribir `</file>` adentro de un bloque `<file>` sin sustituir secuencias de escape:
+También puedes usar bloques `CDATA`, incluso permiten escribir `</file>` adentro de un bloque `<file>` sin sustituir secuencias de escape:
 
 ```xml
 <file path="src/components/Button.tsx">
