@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LLMParser, extractNodes, getInlineBacktickRanges } from "./LLMParser";
+import { LLMParser, extractNodes, getInlineBacktickRanges, unescapeXml } from "./LLMParser";
 
 // =============================================================================
 // getInlineBacktickRanges
@@ -60,6 +60,28 @@ describe("getInlineBacktickRanges", () => {
 
   it("maneja texto vacio", () => {
     expect(getInlineBacktickRanges("")).toHaveLength(0);
+  });
+});
+
+// =============================================================================
+// unescapeXml
+// =============================================================================
+
+describe("unescapeXml", () => {
+  it("convierte &lt; y &gt;", () => {
+    expect(unescapeXml("&lt;div&gt;")).toBe("<div>");
+  });
+
+  it("convierte &amp;", () => {
+    expect(unescapeXml("a &amp; b")).toBe("a & b");
+  });
+
+  it("convierte &quot;", () => {
+    expect(unescapeXml('&quot;hola&quot;')).toBe('"hola"');
+  });
+
+  it("no modifica texto sin entidades", () => {
+    expect(unescapeXml("hola mundo")).toBe("hola mundo");
   });
 });
 
@@ -228,6 +250,29 @@ describe("extractNodes", () => {
     const text = "``\n<cmd>npm install</cmd>\n``";
     const nodes = extractNodes(text);
     expect(nodes).toHaveLength(1);
+  });
+
+  it("devuelve nodos en el orden de aparición, no agrupados por tipo", () => {
+    const nodes = extractNodes(
+      '<cmd>echo segundo</cmd>\n<tree path="src" />\n<cmd>echo primero</cmd>\n<file path="test.txt">contenido</file>'
+    );
+    expect(nodes).toHaveLength(4);
+    expect(nodes[0]).toEqual({ type: "cmd", payload: "echo segundo" });
+    expect(nodes[1]).toEqual({ type: "tree", payload: "src" });
+    expect(nodes[2]).toEqual({ type: "cmd", payload: "echo primero" });
+    expect(nodes[3]).toEqual({ type: "file", payload: "test.txt", content: "contenido" });
+  });
+
+  it("aplica unescape a contenido de file y payload de cmd", () => {
+    const nodes = extractNodes(
+      '<cmd>echo &lt;div&gt;Hola&lt;/div&gt;</cmd>\n<file path="index.html">&lt;html&gt;&amp;nbsp;&lt;/html&gt;</file>'
+    );
+    expect(nodes).toHaveLength(2);
+    expect(nodes[0].type).toBe("cmd");
+    expect(nodes[0].payload).toBe('echo <div>Hola</div>');
+    expect(nodes[1].type).toBe("file");
+    expect(nodes[1].payload).toBe("index.html");
+    expect(nodes[1].content).toBe('<html>&nbsp;</html>');
   });
 });
 

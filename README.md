@@ -15,13 +15,30 @@ El proyecto utiliza una arquitectura de **"Humano en el bucle" (Human-in-the-loo
 
 ## ✨ Características actuales
 
+### Parseo y Ejecución
 *   **Parser Inteligente:** Detecta automáticamente bloques `<cmd>`, `<file>` y `<tree>` dentro de cualquier texto pegado. Ignora etiquetas mencionadas dentro de backticks inline (`` `...` ``) para evitar ejecuciones accidentales.
+*   **Escapado XML:** Soporta entidades XML (`&lt;`, `&gt;`, `&amp;`, `"`) dentro del contenido de las etiquetas, permitiendo que el LLM escriba código con `<` y `>` sin romper el parser.
 *   **Escritura de Archivos:** Soporta la etiqueta `<file>` para crear o sobrescribir archivos directamente desde la respuesta del LLM.
-*   **Exploración de Directorios:** Soporta la etiqueta `<tree>` para mostrar la estructura de carpetas del proyecto.
-*   **Cola Secuencial:** Los comandos se organizan en tarjetas de acción. Solo se permite la ejecución del comando actual para evitar condiciones de carrera o desastres en cascada.
-*   **Agnóstico a la Terminal:** Configurado para usar `cmd.exe` en Windows con soporte para UTF-8 (`chcp 65001`).
+*   **Exploración de Directorios:** Soporta la etiqueta `<tree>` para mostrar la estructura de carpetas del proyecto, ignorando directorios irrelevantes (`node_modules`, `.git`, `target`, etc.).
+
+### Cola y Feedback
+*   **Cola Secuencial:** Los comandos se organizan en tarjetas de acción. Solo se permite la ejecución del comando actual para evitar condiciones de carrera o desastres en cascada. Las tarjetas completadas desaparecen automáticamente.
+*   **Autocopiado:** Toggle para copiar automáticamente el XML de feedback al portapapeles tras cada ejecución.
 *   **Feedback Loop:** Genera automáticamente un reporte en XML con los resultados de `stdout`, `stderr` y códigos de salida para que el LLM pueda corregir sus propios errores.
-*   **Diff Visual Estilo GitHub:** Panel de control de cambios con diff coloreado, números de línea, headers de hunk y secciones de contexto colapsables.
+
+### Control de Cambios (Compare-TDD)
+*   **Snapshot Automático:** Toma una instantánea Git antes de ejecutar la primera acción de cada tanda.
+*   **Diff Visual:** Al finalizar la cola, muestra un diff unificado de todos los archivos modificados.
+*   **Revertir:** Restaura los archivos modificados al estado de la instantánea (sin borrar archivos nuevos).
+
+### Composición de Prompts
+*   **PromptBuilder:** Compositor de prompts con autocompletado de archivos. Escribe `@` seguido del nombre de un archivo para adjuntarlo al prompt. Genera y copia el prompt completo al portapapeles con un clic.
+
+### Interfaz
+*   **Siempre Visible:** La ventana se mantiene "always on top" para evitar Alt+Tab constantes.
+*   **Selector de Proyecto:** Diálogo nativo para cambiar la carpeta raíz del proyecto. Todos los comandos y archivos operan relativos a ella.
+*   **Botón Pegar:** Lee el contenido del portapapeles y lo pega directamente en el área de entrada.
+*   **Agnóstico a la Terminal:** Configurado para usar `cmd.exe` en Windows con soporte para UTF-8 (`chcp 65001`).
 
 ---
 
@@ -30,6 +47,7 @@ El proyecto utiliza una arquitectura de **"Humano en el bucle" (Human-in-the-loo
 *   **Rust:** Canal `stable-x86_64-pc-windows-msvc`.
 *   **Node.js:** v18 o superior.
 *   **C++ Build Tools:** Herramientas de compilación de Visual Studio instaladas.
+*   **Git:** Requerido para la funcionalidad de Control de Cambios.
 
 ---
 
@@ -40,14 +58,19 @@ El proyecto utiliza una arquitectura de **"Humano en el bucle" (Human-in-the-loo
     npm install
     ```
 
-2.  **Ejecutar en modo desarrollo:**
+2.  **Ejecutar en modo desarrollo (con vigilancia):**
     ```bash
     npm run tauri dev
     ```
 
-3.  **Ejecutar tests:**
+3.  **Ejecutar en modo desarrollo (sin reinicios automáticos):**
     ```bash
-    npm run test
+    npm run tauri:dev
+    ```
+
+4.  **Ejecutar tests:**
+    ```bash
+    npm test
     ```
 
 ---
@@ -69,25 +92,33 @@ Escribe contenido directamente en un archivo del proyecto.
 import { h } from 'preact';
 
 export function Button() {
-  return <button>Click me</button>;
+  return &lt;button&gt;Click me&lt;/button&gt;;
 }
 </file>
 ```
+> **Nota:** Usa `&lt;` y `&gt;` para representar `<` y `>` dentro del contenido.
 
 ### `<tree>`
 Muestra la estructura de directorios a partir de la ruta indicada.
-`<tree path="src/components" />`
+```xml
+<tree path="src/components" />
+```
 
 ---
 
-## 🗺️ Hoja de Ruta (Próximamente)
+## 🗺️ Hoja de Ruta
 
 *   **`<read path="...">`**: Permite al agente leer el contenido de archivos locales para ganar contexto sin necesidad de comandos de terminal.
+*   **Resaltado de sintaxis** en el visor de diff.
+*   **Atajos de teclado** en el dropdown de búsqueda de archivos.
+*   **Persistencia de configuración** (carpeta del proyecto, preferencias).
 
 ---
 
 ## 🛡️ Seguridad
 A diferencia de los agentes autónomos que se ejecutan en "modo Dios", **ControlVCode** requiere una revisión humana antes de cada ejecución. Cada comando es visible y editable antes de presionar el botón de "Ejecutar".
+
+El Control de Cambios permite revertir cualquier modificación realizada por el LLM, devolviendo el proyecto al estado anterior a la ejecución.
 
 ---
 

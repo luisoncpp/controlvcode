@@ -47,6 +47,18 @@ function isProtected(index: number, ranges: Range[]): boolean {
   return ranges.some(r => index >= r.start && index < r.end);
 }
 
+/**
+ * Convierte las entidades XML más comunes a sus caracteres originales.
+ * Así el LLM puede escribir &lt; en lugar de < dentro de un bloque <cmd> o <file>.
+ */
+export function unescapeXml(text: string): string {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"');
+}
+
 interface ExtractedNode {
   type: ActionNode['type'];
   payload: string;
@@ -66,13 +78,20 @@ export function extractNodes(rawText: string): ExtractedNode[] {
 
     if (match[1] !== undefined) {
       // Grupo 1: cmd
-      matches.push({ index: match.index, node: { type: 'cmd', payload: match[1].trim() } });
+      matches.push({ index: match.index, node: { type: 'cmd', payload: unescapeXml(match[1].trim()) } });
     } else if (match[2] !== undefined) {
       // Grupos 2 y 3: file
-      matches.push({ index: match.index, node: { type: 'file', payload: match[2].trim(), content: match[3] } });
+      matches.push({
+        index: match.index,
+        node: {
+          type: 'file',
+          payload: unescapeXml(match[2].trim()),
+          content: unescapeXml(match[3])
+        }
+      });
     } else if (match[4] !== undefined) {
       // Grupo 4: tree
-      matches.push({ index: match.index, node: { type: 'tree', payload: match[4].trim() } });
+      matches.push({ index: match.index, node: { type: 'tree', payload: unescapeXml(match[4].trim()) } });
     }
   }
 
