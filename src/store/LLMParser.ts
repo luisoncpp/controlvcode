@@ -2,7 +2,7 @@ import type { ActionNode } from '../types';
 
 import { unescapeXml } from './LLMParserPrivate/unescapeXml';
 import { getInlineBacktickRanges } from './LLMParserPrivate/backtickRanges';
-import { scanTags } from './LLMParserPrivate/scanner';
+import { scanTags } from './LLMParserPrivate/Scanner';
 import { extractNodes } from './LLMParserPrivate/extractor';
 
 export { unescapeXml, getInlineBacktickRanges, scanTags, extractNodes };

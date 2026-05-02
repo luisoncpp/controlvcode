@@ -1,5 +1,5 @@
 import type { RawTag, ExtractedNode } from './types';
-import { scanTags } from './scanner';
+import { scanTags } from './Scanner';
 import { unescapeXml } from './unescapeXml';
 import { TAG_SCHEMAS } from './tagSchemas';
 import type { TagSchema } from './tagSchemas';
