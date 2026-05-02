@@ -39,6 +39,11 @@ pub struct ExecutionResult {
     pub exit_code: i32,
 }
 
+#[derive(Serialize)]
+pub struct ReplaceResult {
+    pub replaced: usize,
+}
+
 #[tauri::command]
 fn get_project_dir() -> String {
     project_root().to_string_lossy().to_string()
@@ -67,7 +72,6 @@ fn search_files(query: String) -> Result<Vec<String>, String> {
         let relative = path.strip_prefix(&root).unwrap_or(path);
         let name = relative.to_string_lossy().to_lowercase();
         
-        // Ignorar directorios y archivos en carpetas ignoradas
         if IGNORED_DIRS.iter().any(|d| name.starts_with(&format!("{}/", d)) || name.starts_with(&format!("{}\\", d))) {
             continue;
         }
@@ -76,7 +80,6 @@ fn search_files(query: String) -> Result<Vec<String>, String> {
             results.push(relative.to_string_lossy().to_string());
         }
         
-        // Limitar resultados para rendimiento
         if results.len() >= 20 {
             break;
         }
@@ -117,6 +120,31 @@ fn read_file_with_line_numbers(path: String, start_line: Option<usize>, end_line
     }
     let selected: Vec<&str> = lines[start-1..end].to_vec();
     Ok(selected.join("\n"))
+}
+
+#[tauri::command]
+fn replace_in_file(path: String, old_str: String, new_str: String, all: bool) -> Result<ReplaceResult, String> {
+    let file_path = project_root().join(&path);
+    if !file_path.exists() {
+        return Err(format!("El archivo &apos;{}&apos; no existe.", path));
+    }
+    let content = fs::read_to_string(&file_path)
+        .map_err(|e| format!("Error leyendo {}: {}", path, e))?;
+    if !content.contains(&old_str) {
+        return Err(format!("No se encontr&oacute; el texto a reemplazar en &apos;{}&apos;.", path));
+    }
+    let replaced = if all {
+        content.matches(&old_str).count()
+    } else {
+        1
+    };
+    let new_content = if all {
+        content.replace(&old_str, &new_str)
+    } else {
+        content.replacen(&old_str, &new_str, 1)
+    };
+    fs::write(&file_path, &new_content).map_err(|e| format!("Error escribiendo {}: {}", path, e))?;
+    Ok(ReplaceResult { replaced })
 }
 
 #[tauri::command]
@@ -212,6 +240,7 @@ pub fn run() {
             search_files,
             read_file_content,
             read_file_with_line_numbers,
+            replace_in_file,
             git_commands::snapshot_create,
             git_commands::snapshot_diff,
             git_commands::snapshot_restore

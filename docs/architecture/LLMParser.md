@@ -1,86 +1,155 @@
 # LLMParser – Architecture
 
 ## 🧠 Purpose
-`LLMParser` transforms raw text (typically an LLM response) into a queue of executable `ActionNode` objects. It recognises three types of XML tags – `<cmd>`, `<file>`, and `<tree>` – while respecting inline backtick-protected spans and XML entity escaping.
+`LLMParser` transforms raw text (typically an LLM response) into a queue of executable `ActionNode` objects. It recognises five types of XML tags – `<cmd>`, `<file>`, `<tree>`, `<read>`, and `<replace>` – while respecting inline backtick-protected spans and XML entity escaping.
 
-The implementation is split into a public facade (`LLMParser.ts`) and a private implementation directory (`LLMParserPrivate/`) that no other module may import directly.
+The implementation is split into a public facade (`LLMParser.ts`) and a private implementation directory (`LLMParserPrivate/`) that no other module may import directly. Execution logic for each tool lives in `src/store/Commands/`.
 
 ---
 
 ## 🗂️ File structure
 
 ```
-src/store/
-  LLMParser.ts                    ← Public facade (re-exports internals for tests)
-  LLMParserPrivate/
-    types.ts                      ← Shared types (Range, RawTag, ExtractedNode)
-    unescapeXml.ts                ← XML entity decoder
-    backtickRanges.ts             ← Inline backtick range detector
-    scanner.ts                    ← Generic XML tag scanner
-    extractor.ts                  ← Tag → ExtractedNode converter
+src/
+├── types.ts                         ← Action types, ActionNode, ExecutionResult
+├── store/
+│   ├── ExecutionStore.ts            ← Orchestrates parsing & execution
+│   ├── LLMParser.ts                 ← Public facade (re-exports internals for tests)
+│   ├── LLMParserPrivate/
+│   │   ├── types.ts                 ← Shared types (Range, RawTag, ExtractedNode)
+│   │   ├── unescapeXml.ts           ← XML entity decoder
+│   │   ├── backtickRanges.ts        ← Inline backtick range detector
+│   │   ├── scanner.ts               ← Generic XML tag scanner
+│   │   └── extractor.ts             ← Tag → ExtractedNode converter
+│   └── Commands/
+│       ├── readCommand.ts           ← executeRead + line number formatting
+│       ├── readCommand.test.ts
+│       ├── replaceCommand.ts        ← executeReplace (text substitution)
+│       └── replaceCommand.test.ts
+src-tauri/src/
+    └── lib.rs                       ← Tauri commands (read_file_with_line_numbers, replace_in_file, …)
 ```
+
+---
+
+## 🏷️ Supported tags
+
+### `<cmd>` — Execute a terminal command
+
+```xml
+<cmd>npm install preact</cmd>
+```
+
+- **Extracted as**: `{ type: 'cmd', payload: 'npm install preact' }`
+- **Backend**: `execute_bash_command` (wraps `cmd.exe /C` with UTF-8 codepage)
+- **Result**: `ExecutionResult` with `stdout`, `stderr`, `exitCode`
+
+### `<file>` — Write a file
+
+```xml
+<file path="src/Component.tsx">
+export function Hello() {
+  return <div>Hi</div>;
+}
+</file>
+```
+
+- **Extracted as**: `{ type: 'file', payload: 'src/Component.tsx', content: 'export function…' }`
+- **Backend**: `write_file` (creates parent dirs, overwrites)
+- **Result**: confirmation message in `stdout`
+
+### `<tree>` — List directory structure
+
+```xml
+<tree path="src/components" />
+```
+
+- **Extracted as**: `{ type: 'tree', payload: 'src/components' }`
+- **Backend**: `list_directory` (recursive, ignores `.git`, `node_modules`, etc.)
+- **Result**: tree-formatted output in `stdout`
+
+### `<read>` — Read a file with line numbers
+
+```xml
+<!-- Read entire file -->
+<read path="src/App.tsx" />
+
+<!-- Read lines 10 to 25 -->
+<read path="src/App.tsx" start="10" end="25" />
+
+<!-- Read only line 42 -->
+<read path="src/App.tsx" line="42" />
+
+<!-- Read 15 lines starting at line 30 -->
+<read path="src/App.tsx" line="30" count="15" />
+```
+
+- **Extracted as**: `{ type: 'read', payload: 'src/App.tsx', options: { start, end, line, count } }`
+- **Frontend command**: `executeRead(path, options)` — resolves line options, calls backend, formats with `cat -n` style numbering
+- **Backend**: `read_file_with_line_numbers` — reads file, validates line range, returns raw content
+- **Result**: numbered lines in `stdout`:
+  ```
+      1  import { h } from 'preact';
+      2  
+      3  export function App() {
+  ```
+
+### `<replace>` — Surgical text replacement
+
+```xml
+<!-- Replace first occurrence -->
+<replace path="src/App.tsx" old="useState(0)" new="useSignal(0)" />
+
+<!-- Replace all occurrences -->
+<replace path="src/utils.ts" old="var " new="let " occurrence="all" />
+```
+
+- **Extracted as**: `{ type: 'replace', payload: 'src/App.tsx', content: 'useState(0)', newContent: 'useSignal(0)', options?: { occurrence: 'all' } }`
+- **Frontend command**: `executeReplace(path, oldStr, newStr, options)` — invokes backend, returns summary
+- **Backend**: `replace_in_file` — reads file, checks for `old_str` existence, replaces first or all occurrences, writes back
+- **Result**: `Replaced 1 occurrence(s) in src/App.tsx.`
 
 ---
 
 ## 📄 File responsibilities
 
 ### `LLMParser.ts` (public facade)
-
 - **Role**: Single entry point for the rest of the application and for unit tests.
-- Exports:
-  - The `LLMParser` class with a static `parse(rawText: string): ActionNode[]` method.
-  - All previously public pure functions (`unescapeXml`, `getInlineBacktickRanges`, `scanTags`, `extractNodes`) **re-exported** from the private modules so existing tests continue to work.
-- Does **not** contain any parsing logic itself – only the private imports and the `parse` pipeline:
-  1. `extractNodes(rawText)` → produces plain `ExtractedNode[]`.
-  2. Maps each `ExtractedNode` into an `ActionNode` with a random UUID, `status: 'pending'`, and `result: null`.
+- Exports the `LLMParser` class with `parse(rawText)` and re-exports all pure functions for testing.
+- The `parse` pipeline: `extractNodes` → map each `ExtractedNode` to `ActionNode` with UUID, `status: 'pending'`, `result: null`.
 
 ### `LLMParserPrivate/types.ts`
-
-- Defines three interfaces shared across the private modules:
-  - `Range`: `{ start, end }` – used by backtick protection.
-  - `RawTag`: structure produced by the scanner (`name`, `attributes`, `content`, `isSelfClosing`, `startIndex`, `endIndex`).
-  - `ExtractedNode`: normalised node (`type`, `payload`, optional `content`) ready for consumption.
+Shared interfaces: `Range`, `RawTag`, `ExtractedNode` (now supports `newContent` and `options`).
 
 ### `LLMParserPrivate/unescapeXml.ts`
-
-- **Pure function** `unescapeXml(text: string): string`.
-- Reverses the XML entities commonly emitted by LLMs:
-  - `&lt;` → `<`
-  - `&gt;` → `>`
-  - `&amp;` → `&`
-  - `&quot;` → `"`
-- **Order matters**: `&` is replaced **last** to avoid corrupting compound entities like `&lt;`.
+Reverses XML entities: `<` → `<`, `>` → `>`, `&` → `&`, `"` → `"`.  
+**Order matters**: `&` is replaced last to avoid corrupting compound entities.
 
 ### `LLMParserPrivate/backtickRanges.ts`
-
-- **Pure function** `getInlineBacktickRanges(text: string): Range[]`.
-- Scans the raw text and returns intervals covered by:
-  - Inline single-backtick spans (`` `code` ``).
-  - Triple-backtick fenced blocks (``` ``` ```), which are skipped entirely (not tracked as protected ranges, but the scanner later advances past them).
-- Used by `scanTags` to know where tags **must not** be parsed.
+Detects inline backtick spans and triple-backtick fenced blocks. Tags inside these ranges are ignored by the scanner.
 
 ### `LLMParserPrivate/scanner.ts`
-
-- **Core function** `scanTags(rawText: string): RawTag[]`.
-- Implements a character-by-character XML parser that is tolerant to malformed markup.
-- Algorithm:
-  1. Obtain protected ranges via `getInlineBacktickRanges`.
-  2. Walk the string; skip any position inside a protected range.
-  3. When `<` is found, attempt to parse a tag name.
-  4. Parse attributes (handling both single and double quotes).
-  5. If self-closing (`/>`), record a `RawTag` with `isSelfClosing: true`.
-  6. Otherwise, search for the matching closing tag, counting nesting depth.
-  7. Content between opening and closing tag is captured as-is (without the closing tag itself).
-- Private helpers (`skipProtected`, `parseName`, `parseAttributes`) are extracted to keep the main loop readable.
+Character-by-character XML parser that produces `RawTag[]`. Handles nesting, self-closing tags, attributes with single/double quotes, and malformed input gracefully.
 
 ### `LLMParserPrivate/extractor.ts`
+Converts `RawTag[]` to `ExtractedNode[]` via a `switch` on tag name. Applies `unescapeXml` to all payloads and contents. New tools are added here as new `case` branches.
 
-- **Function** `extractNodes(rawText: string): ExtractedNode[]`.
-- Calls `scanTags` and converts recognised tag names to `ExtractedNode` objects:
-  - `<cmd>content</cmd>` → `{ type: 'cmd', payload: unescapeXml(content.trim()) }`
-  - `<file path="...">content</file>` → `{ type: 'file', payload: unescapeXml(path), content: unescapeXml(content) }`
-  - `<tree path="..." />` → `{ type: 'tree', payload: unescapeXml(path) }`
-- Unknown tags are silently ignored, making the system extensible.
+### `ExecutionStore.ts`
+Orchestrates the full lifecycle:
+1. `processInput(text)` — parses via `LLMParser.parse`
+2. `executeNode(index)` — dispatches based on `node.type`:
+   - `cmd` → `invoke('execute_bash_command')`
+   - `file` → `invoke('write_file')`
+   - `tree` → `invoke('list_directory')`
+   - `read` → `executeRead()` (frontend command)
+   - `replace` → `executeReplace()` (frontend command)
+3. Updates `node.status` and `node.result`, triggers auto-copy of feedback XML.
+
+### `Commands/readCommand.ts`
+- `executeRead(path, options)`: resolves `line`/`count` or `start`/`end`, calls `read_file_with_line_numbers` via Tauri, formats output with 5-digit line numbers.
+
+### `Commands/replaceCommand.ts`
+- `executeReplace(path, oldStr, newStr, options)`: calls `replace_in_file` via Tauri with `all: boolean`, returns human-readable summary.
 
 ---
 
@@ -90,41 +159,33 @@ src/store/
 rawText (string)
         │
         ▼
-  extractNodes(rawText)                ← public facade calls this
+  extractNodes(rawText)
         │
         ├──► getInlineBacktickRanges   (inside scanner)
         ├──► scanTags                  (inside extractor)
         │       │
-        │       └──► skipProtected
-        │            parseName, parseAttributes
+        │       └──► skipProtected, parseName, parseAttributes
         │
         └──► for each RawTag:
-                switch tag.name:
-                  'cmd'  → ExtractedNode { type:'cmd', payload }
-                  'file' → ExtractedNode { type:'file', payload, content }
-                  'tree' → ExtractedNode { type:'tree', payload }
+                switch tag.name → ExtractedNode
         │
         ▼
   LLMParser.parse(rawText)
         │
-        └──► extractNodes(rawText).map(node => ({
-               id: crypto.randomUUID(),
-               type: node.type,
-               payload: node.payload,
-               content: node.content,
-               status: 'pending',
-               result: null
-             }))
+        └──► extractNodes(rawText).map(node => ActionNode)
         │
         ▼
-  ActionNode[]  (consumed by ExecutionStore)
+  ExecutionStore.executeNode(index)
+        │
+        ├── type 'cmd'     → invoke('execute_bash_command')
+        ├── type 'file'    → invoke('write_file')
+        ├── type 'tree'    → invoke('list_directory')
+        ├── type 'read'    → executeRead() → invoke('read_file_with_line_numbers')
+        ├── type 'replace' → executeReplace() → invoke('replace_in_file')
+        │
+        ▼
+  ActionNode.result  →  UI displays stdout/stderr
 ```
-
-1. The calling code invokes `LLMParser.parse(rawText)`.
-2. `parse` delegates to `extractNodes`, which coordinates `scanTags` and `unescapeXml`.
-3. `scanTags` first builds protected ranges via `getInlineBacktickRanges` and then extracts raw tags.
-4. `extractNodes` converts each recognised `RawTag` into an `ExtractedNode`, applying unescaping.
-5. `parse` enriches each `ExtractedNode` into a full `ActionNode` with identity and execution metadata.
 
 ---
 
@@ -143,38 +204,49 @@ extractor.ts     → types.ts, scanner.ts, unescapeXml.ts
 
 ```
 LLMParser.ts     → ../types (ActionNode)
-                 → LLMParserPrivate/unescapeXml.ts
-                 → LLMParserPrivate/backtickRanges.ts
-                 → LLMParserPrivate/scanner.ts
-                 → LLMParserPrivate/extractor.ts
+                 → LLMParserPrivate/*
 ```
 
-- No other module in the application may import from `LLMParserPrivate/`. The only consumers are `LLMParser.ts` and the test files (which continue to import the re-exported symbols from `LLMParser.ts`).
+### Commands
 
-### External
+```
+readCommand.ts    → @tauri-apps/api/core
+replaceCommand.ts → @tauri-apps/api/core
+```
 
-- `crypto.randomUUID()` (browser API) for generating unique action IDs.
-- No Tauri, React, or signal dependencies – the parser is fully synchronous and framework-agnostic.
+### Store
+
+```
+ExecutionStore.ts → LLMParser.ts
+                  → Commands/readCommand.ts
+                  → Commands/replaceCommand.ts
+```
+
+- No other module may import from `LLMParserPrivate/`. Tests import re-exported symbols from `LLMParser.ts`.
 
 ---
 
 ## 🧪 Test coverage
 
-Two test files validate the parser:
-
-- `LLMParser.test.ts` (44 tests): covers `unescapeXml`, `getInlineBacktickRanges`, `extractNodes`, and the `LLMParser.parse` pipeline.
-- `TagScanner.test.ts` (11 tests): additional smoke tests for `scanTags` and `unescapeXml`.
-
-Both files import exclusively from `LLMParser.ts`, ensuring the public API remains the single source of truth.
+| File | Tests | Focus |
+|---|---|---|
+| `LLMParser.test.ts` | 44 | Backtick ranges, unescape, extractNodes, parse pipeline |
+| `TagScanner.test.ts` | 11 | Scanner smoke tests |
+| `LLMParserRead.test.ts` | 11 | `<read>` tag extraction and ActionNode generation |
+| `LLMParserReplace.test.ts` | 4 | `<replace>` tag extraction and ActionNode generation |
+| `readCommand.test.ts` | 9 | `executeRead` backend calls and line formatting |
+| `replaceCommand.test.ts` | 2 | `executeReplace` backend calls |
+| **Total** | **96** | |
 
 ---
 
 ## 🗺️ Extension points
 
-- **New tag types**: Add a `case` in `extractor.ts` and optionally a corresponding `ActionNode['type']` in the public types.
-- **Additional escaping rules**: Extend `unescapeXml.ts` with new entities as needed.
-- **Custom backtick protection**: Modify `getInlineBacktickRanges` if new markdown constructs need to be skipped.
+- **New tag type**: Add a `case` in `extractor.ts`, a command in `Commands/`, a Tauri command in `lib.rs`, a dispatch branch in `ExecutionStore.ts`, and a test file.
+- **Additional escaping rules**: Extend `unescapeXml.ts`.
+- **Custom backtick protection**: Modify `getInlineBacktickRanges`.
+- **New shell support**: Add a shell selector in settings and branch in `execute_bash_command`.
 
 ---
 
-> *LLMParser is the bridge between raw LLM text and executable actions. Its layered design keeps the public contract stable while allowing each internal concern to evolve independently.*
+> *LLMParser is the bridge between raw LLM text and executable actions. Its layered design keeps the public contract stable while allowing each internal concern and tool to evolve independently.*

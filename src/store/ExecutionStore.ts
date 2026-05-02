@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ActionNode, ExecutionResult } from "../types";
 import { LLMParser } from "./LLMParser";
 import { executeRead, ReadOptions } from "./Commands/readCommand";
+import { executeReplace, ReplaceOptions } from "./Commands/replaceCommand";
 
 export class ExecutionStore {
   public rawInput = signal("");
@@ -47,6 +48,16 @@ export class ExecutionStore {
           if (node.options.count) opts.count = parseInt(node.options.count, 10);
         }
         const output = await executeRead(node.payload, opts);
+        result = { stdout: output, stderr: '', exitCode: 0 };
+      } else if (node.type === 'replace') {
+        const ropts: ReplaceOptions = {};
+        if (node.options?.occurrence === 'all') ropts.occurrence = 'all';
+        const output = await executeReplace(
+          node.payload,
+          node.content ?? '',
+          node.newContent ?? '',
+          ropts
+        );
         result = { stdout: output, stderr: '', exitCode: 0 };
       } else {
         throw new Error(`Tipo de acción desconocido: ${node.type}`);

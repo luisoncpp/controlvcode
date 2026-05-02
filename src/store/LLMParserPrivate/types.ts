@@ -1,5 +1,3 @@
-// Tipos compartidos dentro del parser
-
 export interface Range {
   start: number;
   end: number;
@@ -15,8 +13,9 @@ export interface RawTag {
 }
 
 export interface ExtractedNode {
-  type: 'cmd' | 'file' | 'tree' | 'read';
+  type: 'cmd' | 'file' | 'tree' | 'read' | 'replace';
   payload: string;
   content?: string;
-  options?: Record<string, string>;  // atributos extra del tag
+  newContent?: string;            // para replace
+  options?: Record<string, string>;
 }

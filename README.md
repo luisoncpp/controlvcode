@@ -16,9 +16,11 @@ El proyecto utiliza una arquitectura de **"Humano en el bucle" (Human-in-the-loo
 ## ✨ Características actuales
 
 ### Parseo y Ejecución
-*   **Parser Inteligente:** Detecta automáticamente bloques `<cmd>`, `<file>` y `<tree>` dentro de cualquier texto pegado. Ignora etiquetas mencionadas dentro de backticks inline (`` `...` ``) para evitar ejecuciones accidentales.
+*   **Parser Inteligente:** Detecta automáticamente bloques `<cmd>`, `<file>`, `<tree>`, `<read>` y `<replace>` dentro de cualquier texto pegado. Ignora etiquetas mencionadas dentro de backticks inline (`` `...` ``) para evitar ejecuciones accidentales.
 *   **Escapado XML:** Soporta entidades XML (`&lt;`, `&gt;`, `&amp;`, `"`) dentro del contenido de las etiquetas, permitiendo que el LLM escriba código con `<` y `>` sin romper el parser.
 *   **Escritura de Archivos:** Soporta la etiqueta `<file>` para crear o sobrescribir archivos directamente desde la respuesta del LLM.
+*   **Lectura de Archivos:** Soporta la etiqueta `<read>` para leer archivos con numeración de líneas, incluyendo rangos (`start`, `end`, `line`, `count`).
+*   **Reemplazo Quirúrgico:** Soporta la etiqueta `<replace>` para sustituir fragmentos de texto en archivos existentes (primera ocurrencia o todas).
 *   **Exploración de Directorios:** Soporta la etiqueta `<tree>` para mostrar la estructura de carpetas del proyecto, ignorando directorios irrelevantes (`node_modules`, `.git`, `target`, etc.).
 
 ### Cola y Feedback

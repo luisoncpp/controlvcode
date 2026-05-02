@@ -40,7 +40,18 @@ export function extractNodes(rawText: string): ExtractedNode[] {
         });
         break;
       }
-      // Futuras herramientas aquí
+      case 'replace': {
+        const ropts: Record<string, string> = {};
+        if (tag.attributes['occurrence']) ropts.occurrence = tag.attributes['occurrence'];
+        nodes.push({
+          type: 'replace',
+          payload: unescapeXml(tag.attributes['path'] ?? ''),
+          content: unescapeXml(tag.attributes['old'] ?? ''),
+          newContent: unescapeXml(tag.attributes['new'] ?? ''),
+          options: Object.keys(ropts).length > 0 ? ropts : undefined,
+        });
+        break;
+      }
     }
   }
 

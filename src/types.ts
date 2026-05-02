@@ -1,5 +1,5 @@
 export type ActionStatus = 'pending' | 'running' | 'success' | 'error' | 'skipped';
-export type ActionType = 'cmd' | 'file' | 'tree' | 'read';
+export type ActionType = 'cmd' | 'file' | 'tree' | 'read' | 'replace';
 
 export interface ExecutionResult {
   stdout: string;
@@ -12,6 +12,7 @@ export interface ActionNode {
   type: ActionType;
   payload: string;
   content?: string;
+  newContent?: string;
   options?: Record<string, string>;
   status: ActionStatus;
   result: ExecutionResult | null;
