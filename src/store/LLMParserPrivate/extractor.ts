@@ -7,6 +7,8 @@ import type { TagSchema } from './tagSchemas';
 function extractField(source: 'content' | string, tag: RawTag, trim = false): string {
   if (source === 'content') {
     const raw = tag.content ?? '';
+    // If the agent wrapped the content in CDATA, trust it literally (skip XML unescape)
+    if (tag.isCData) return trim ? raw.trim() : raw;
     return unescapeXml(trim ? raw.trim() : raw);
   }
   return unescapeXml(tag.attributes[source] ?? '');

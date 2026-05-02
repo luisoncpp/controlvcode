@@ -8,6 +8,7 @@ export interface RawTag {
   attributes: Record<string, string>;
   content: string | null;
   isSelfClosing: boolean;
+  isCData?: boolean;  // true if content was wrapped in <![CDATA[...]]>
   startIndex: number;
   endIndex: number;
 }

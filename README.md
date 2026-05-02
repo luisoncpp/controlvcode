@@ -17,7 +17,7 @@ El proyecto utiliza una arquitectura de **"Humano en el bucle" (Human-in-the-loo
 
 ### Parseo y Ejecución
 *   **Parser Inteligente:** Detecta automáticamente bloques `<cmd>`, `<file>`, `<tree>`, `<read>` y `<replace>` dentro de cualquier texto pegado. Ignora etiquetas mencionadas dentro de backticks inline (`` `...` ``) para evitar ejecuciones accidentales.
-*   **Escapado XML:** Soporta entidades XML (`&lt;`, `&gt;`, `&amp;`, `"`) dentro del contenido de las etiquetas, permitiendo que el LLM escriba código con `<` y `>` sin romper el parser.
+*   **Bloques CDATA:** Soporta `<![CDATA[ ... ]]>` para escribir archivos completos (como JSX o HTML) sin necesidad de escapar `<` ni `>`. Si el código contiene la secuencia literal `]]>`, el protocolo usa el token `__CDATA_CLOSE__` para evitar romper el XML.
 *   **Escritura de Archivos:** Soporta la etiqueta `<file>` para crear o sobrescribir archivos directamente desde la respuesta del LLM.
 *   **Lectura de Archivos:** Soporta la etiqueta `<read>` para leer archivos con numeración de líneas, incluyendo rangos (`start`, `end`, `line`, `count`).
 *   **Reemplazo Quirúrgico:** Soporta la etiqueta `<replace>` para sustituir fragmentos de texto en archivos existentes (primera ocurrencia o todas).
@@ -94,11 +94,29 @@ Escribe contenido directamente en un archivo del proyecto.
 import { h } from 'preact';
 
 export function Button() {
-  return &lt;button&gt;Click me&lt;/button&gt;;
+  return <button>Click me</button>;
 }
 </file>
 ```
-> **Nota:** Usa `&lt;` y `&gt;` para representar `<` y `>` dentro del contenido.
+
+Lo que está dentro de las etiquetas sustituye las secuencias de escape `&lt;`, `&gt;`, `&amp;` y `&quot;` (no es obligatorio usarlas pero pueden servir para escribir un `</file>` adentro de un archivo, por ejemplo(con `&lt;/file&gt;`)).
+
+Puedes usar bloques `CDATA`, incluso permiten escribir `</file>` adentro de un bloque `<file>` sin sustituir secuencias de escape:
+
+```xml
+<file path="src/components/Button.tsx">
+<![CDATA[
+import { h } from 'preact';
+
+export function Label() {
+  return "</file>";
+}
+export function MathHTML() {
+    return "2 &lt; 5";
+}
+]]>
+</file>
+```
 
 ### `<tree>`
 Muestra la estructura de directorios a partir de la ruta indicada.
