@@ -15,7 +15,8 @@ export interface RawTag {
 }
 
 export interface ExtractedNode {
-  type: 'cmd' | 'file' | 'tree';
+  type: 'cmd' | 'file' | 'tree' | 'read';
   payload: string;
   content?: string;
+  options?: Record<string, string>;  // atributos extra del tag
 }

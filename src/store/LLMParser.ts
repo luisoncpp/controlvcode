@@ -16,6 +16,7 @@ export class LLMParser {
       type: node.type,
       payload: node.payload,
       content: node.content,
+      options: node.options,
       status: 'pending',
       result: null
     }));

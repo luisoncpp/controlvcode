@@ -48,7 +48,7 @@ fn get_project_dir() -> String {
 fn set_project_dir(path: String) -> Result<String, String> {
     let new_path = PathBuf::from(&path);
     if !new_path.is_dir() {
-        return Err(format!("La ruta '{}' no es un directorio válido.", path));
+        return Err(format!("La ruta &apos;{}&apos; no es un directorio v&aacute;lido.", path));
     }
     if let Ok(mut guard) = PROJECT_DIR.lock() {
         *guard = Some(new_path.clone());
@@ -89,9 +89,34 @@ fn search_files(query: String) -> Result<Vec<String>, String> {
 fn read_file_content(path: String) -> Result<String, String> {
     let file_path = project_root().join(&path);
     if !file_path.exists() {
-        return Err(format!("El archivo '{}' no existe.", path));
+        return Err(format!("El archivo &apos;{}&apos; no existe.", path));
     }
     fs::read_to_string(&file_path).map_err(|e| format!("Error leyendo {}: {}", path, e))
+}
+
+#[tauri::command]
+fn read_file_with_line_numbers(path: String, start_line: Option<usize>, end_line: Option<usize>) -> Result<String, String> {
+    let file_path = project_root().join(&path);
+    if !file_path.exists() {
+        return Err(format!("El archivo &apos;{}&apos; no existe.", path));
+    }
+    let content = fs::read_to_string(&file_path)
+        .map_err(|e| format!("Error leyendo {}: {}", path, e))?;
+    let lines: Vec<&str> = content.lines().collect();
+    let total = lines.len();
+    if total == 0 {
+        return Ok(String::new());
+    }
+    let start = start_line.unwrap_or(1);
+    let end = end_line.unwrap_or(total);
+    if start == 0 || start > total {
+        return Err(format!("L&iacute;nea inicial {} fuera de rango (1-{}).", start, total));
+    }
+    if end < start || end > total {
+        return Err(format!("L&iacute;nea final {} fuera de rango ({} - {}).", end, start, total));
+    }
+    let selected: Vec<&str> = lines[start-1..end].to_vec();
+    Ok(selected.join("\n"))
 }
 
 #[tauri::command]
@@ -119,7 +144,7 @@ fn write_file(path: String, content: String) -> Result<ExecutionResult, String> 
     }
     fs::write(&file_path, &content).map_err(|e| e.to_string())?;
     Ok(ExecutionResult {
-        stdout: format!("Archivo '{}' escrito exitosamente.", path),
+        stdout: format!("Archivo &apos;{}&apos; escrito exitosamente.", path),
         stderr: String::new(),
         exit_code: 0,
     })
@@ -157,10 +182,10 @@ fn build_tree(dir: &Path, prefix: &str, output: &mut String) -> std::io::Result<
 fn list_directory(path: String) -> Result<ExecutionResult, String> {
     let dir_path = project_root().join(&path);
     if !dir_path.exists() {
-        return Err(format!("La ruta '{}' no existe.", path));
+        return Err(format!("La ruta &apos;{}&apos; no existe.", path));
     }
     if !dir_path.is_dir() {
-        return Err(format!("'{}' no es un directorio.", path));
+        return Err(format!("&apos;{}&apos; no es un directorio.", path));
     }
     let mut output = String::new();
     let root_name = dir_path.file_name().unwrap_or_default().to_string_lossy();
@@ -186,6 +211,7 @@ pub fn run() {
             set_project_dir,
             search_files,
             read_file_content,
+            read_file_with_line_numbers,
             git_commands::snapshot_create,
             git_commands::snapshot_diff,
             git_commands::snapshot_restore

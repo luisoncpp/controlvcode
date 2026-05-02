@@ -2,6 +2,7 @@ import { signal, computed } from "@preact/signals";
 import { invoke } from "@tauri-apps/api/core";
 import { ActionNode, ExecutionResult } from "../types";
 import { LLMParser } from "./LLMParser";
+import { executeRead, ReadOptions } from "./Commands/readCommand";
 
 export class ExecutionStore {
   public rawInput = signal("");
@@ -37,6 +38,16 @@ export class ExecutionStore {
         result = await invoke('write_file', { path: node.payload, content: node.content ?? '' });
       } else if (node.type === 'tree') {
         result = await invoke('list_directory', { path: node.payload });
+      } else if (node.type === 'read') {
+        const opts: ReadOptions = {};
+        if (node.options) {
+          if (node.options.start) opts.start = parseInt(node.options.start, 10);
+          if (node.options.end) opts.end = parseInt(node.options.end, 10);
+          if (node.options.line) opts.line = parseInt(node.options.line, 10);
+          if (node.options.count) opts.count = parseInt(node.options.count, 10);
+        }
+        const output = await executeRead(node.payload, opts);
+        result = { stdout: output, stderr: '', exitCode: 0 };
       } else {
         throw new Error(`Tipo de acción desconocido: ${node.type}`);
       }

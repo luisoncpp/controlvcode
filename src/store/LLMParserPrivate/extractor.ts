@@ -27,6 +27,19 @@ export function extractNodes(rawText: string): ExtractedNode[] {
           payload: unescapeXml(tag.attributes['path'] ?? ''),
         });
         break;
+      case 'read': {
+        const opts: Record<string, string> = {};
+        if (tag.attributes['start']) opts.start = tag.attributes['start'];
+        if (tag.attributes['end']) opts.end = tag.attributes['end'];
+        if (tag.attributes['line']) opts.line = tag.attributes['line'];
+        if (tag.attributes['count']) opts.count = tag.attributes['count'];
+        nodes.push({
+          type: 'read',
+          payload: unescapeXml(tag.attributes['path'] ?? ''),
+          options: Object.keys(opts).length > 0 ? opts : undefined,
+        });
+        break;
+      }
       // Futuras herramientas aquí
     }
   }
