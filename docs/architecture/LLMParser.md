@@ -3,7 +3,7 @@
 ## 🧠 Purpose
 `LLMParser` transforms raw text (typically an LLM response) into a queue of executable `ActionNode` objects. It recognises five types of XML tags – `<cmd>`, `<file>`, `<tree>`, `<read>`, and `<replace>` – while respecting inline backtick-protected spans and XML entity escaping.
 
-The implementation is split into a public facade (`LLMParser.ts`) and a private implementation directory (`LLMParserPrivate/`) that no other module may import directly. Execution logic for each tool lives in `src/store/Commands/`.
+The implementation is split into a public facade (`LLMParser.ts`) and a private implementation directory (`LLMParserPrivate/`) that no other module may import directly. Execution logic for each tool lives in `src/store/Strategies/`.
 
 ---
 
@@ -13,7 +13,7 @@ The implementation is split into a public facade (`LLMParser.ts`) and a private 
 src/
 ├── types.ts                         ← Action types, ActionNode, ExecutionResult
 ├── store/
-│   ├── ExecutionStore.ts            ← Orchestrates parsing & execution
+│   ├── ExecutionStore.ts            ← Orchestrates parsing & execution (via Strategies)
 │   ├── LLMParser.ts                 ← Public facade (re-exports internals for tests)
 │   ├── LLMParserPrivate/
 │   │   ├── types.ts                 ← Shared types (Range, RawTag, ExtractedNode)
@@ -21,11 +21,16 @@ src/
 │   │   ├── backtickRanges.ts        ← Inline backtick range detector
 │   │   ├── scanner.ts               ← Generic XML tag scanner
 │   │   └── extractor.ts             ← Tag → ExtractedNode converter
-│   └── Commands/
-│       ├── readCommand.ts           ← executeRead + line number formatting
-│       ├── readCommand.test.ts
-│       ├── replaceCommand.ts        ← executeReplace (text substitution)
-│       └── replaceCommand.test.ts
+│   └── Strategies/
+│       ├── types.ts                 ← ActionStrategy interface
+│       ├── index.ts                 ← Strategy registry (defaultStrategies)
+│       ├── CmdStrategy.ts           ← Shell command execution
+│       ├── FileStrategy.ts          ← File writing execution
+│       ├── TreeStrategy.ts          ← Directory listing execution
+│       ├── ReadStrategy.ts          ← File reading + line number formatting
+│       ├── ReplaceStrategy.ts       ← Text replacement execution
+│       ├── ReadStrategy.test.ts
+│       └── ReplaceStrategy.test.ts
 src-tauri/src/
     └── lib.rs                       ← Tauri commands (read_file_with_line_numbers, replace_in_file, …)
 ```
@@ -41,7 +46,7 @@ src-tauri/src/
 ```
 
 - **Extracted as**: `{ type: 'cmd', payload: 'npm install preact' }`
-- **Backend**: `execute_bash_command` (wraps `cmd.exe /C` with UTF-8 codepage)
+- **Strategy**: `CmdStrategy` → `invoke('execute_bash_command')` (wraps `cmd.exe /C` with UTF-8 codepage)
 - **Result**: `ExecutionResult` with `stdout`, `stderr`, `exitCode`
 
 ### `<file>` — Write a file
@@ -55,7 +60,7 @@ export function Hello() {
 ```
 
 - **Extracted as**: `{ type: 'file', payload: 'src/Component.tsx', content: 'export function…' }`
-- **Backend**: `write_file` (creates parent dirs, overwrites)
+- **Strategy**: `FileStrategy` → `invoke('write_file')` (creates parent dirs, overwrites)
 - **Result**: confirmation message in `stdout`
 
 ### `<tree>` — List directory structure
@@ -65,7 +70,7 @@ export function Hello() {
 ```
 
 - **Extracted as**: `{ type: 'tree', payload: 'src/components' }`
-- **Backend**: `list_directory` (recursive, ignores `.git`, `node_modules`, etc.)
+- **Strategy**: `TreeStrategy` → `invoke('list_directory')` (recursive, ignores `.git`, `node_modules`, etc.)
 - **Result**: tree-formatted output in `stdout`
 
 ### `<read>` — Read a file with line numbers
@@ -85,8 +90,7 @@ export function Hello() {
 ```
 
 - **Extracted as**: `{ type: 'read', payload: 'src/App.tsx', options: { start, end, line, count } }`
-- **Frontend command**: `executeRead(path, options)` — resolves line options, calls backend, formats with `cat -n` style numbering
-- **Backend**: `read_file_with_line_numbers` — reads file, validates line range, returns raw content
+- **Strategy**: `ReadStrategy` — resolves `line`/`count` or `start`/`end` options, calls `invoke('read_file_with_line_numbers')`, formats output with `cat -n` style numbering.
 - **Result**: numbered lines in `stdout`:
   ```
       1  import { h } from 'preact';
@@ -105,8 +109,7 @@ export function Hello() {
 ```
 
 - **Extracted as**: `{ type: 'replace', payload: 'src/App.tsx', content: 'useState(0)', newContent: 'useSignal(0)', options?: { occurrence: 'all' } }`
-- **Frontend command**: `executeReplace(path, oldStr, newStr, options)` — invokes backend, returns summary
-- **Backend**: `replace_in_file` — reads file, checks for `old_str` existence, replaces first or all occurrences, writes back
+- **Strategy**: `ReplaceStrategy` — calls `invoke('replace_in_file')` with `all: boolean`, returns human-readable summary.
 - **Result**: `Replaced 1 occurrence(s) in src/App.tsx.`
 
 ---
@@ -119,7 +122,7 @@ export function Hello() {
 - The `parse` pipeline: `extractNodes` → map each `ExtractedNode` to `ActionNode` with UUID, `status: 'pending'`, `result: null`.
 
 ### `LLMParserPrivate/types.ts`
-Shared interfaces: `Range`, `RawTag`, `ExtractedNode` (now supports `newContent` and `options`).
+Shared interfaces: `Range`, `RawTag`, `ExtractedNode` (supports `newContent` and `options`).
 
 ### `LLMParserPrivate/unescapeXml.ts`
 Reverses XML entities: `<` → `<`, `>` → `>`, `&` → `&`, `"` → `"`.  
@@ -136,20 +139,15 @@ Converts `RawTag[]` to `ExtractedNode[]` via a `switch` on tag name. Applies `un
 
 ### `ExecutionStore.ts`
 Orchestrates the full lifecycle:
-1. `processInput(text)` — parses via `LLMParser.parse`
-2. `executeNode(index)` — dispatches based on `node.type`:
-   - `cmd` → `invoke('execute_bash_command')`
-   - `file` → `invoke('write_file')`
-   - `tree` → `invoke('list_directory')`
-   - `read` → `executeRead()` (frontend command)
-   - `replace` → `executeReplace()` (frontend command)
+1. `processInput(text)` — parses via `LLMParser.parse`.
+2. `executeNode(index)` — delegates to the Strategy pattern: looks up `this.strategies[node.type]` and calls `strategy.execute(node)`. (See `Strategies.md` for details).
 3. Updates `node.status` and `node.result`, triggers auto-copy of feedback XML.
 
-### `Commands/readCommand.ts`
-- `executeRead(path, options)`: resolves `line`/`count` or `start`/`end`, calls `read_file_with_line_numbers` via Tauri, formats output with 5-digit line numbers.
+### `Strategies/ReadStrategy.ts`
+Implements `ActionStrategy`. Parses `start`/`end`/`line`/`count` from `node.options`, calls `read_file_with_line_numbers` via Tauri, formats output with 5-digit line numbers.
 
-### `Commands/replaceCommand.ts`
-- `executeReplace(path, oldStr, newStr, options)`: calls `replace_in_file` via Tauri with `all: boolean`, returns human-readable summary.
+### `Strategies/ReplaceStrategy.ts`
+Implements `ActionStrategy`. Calls `replace_in_file` via Tauri with `all: boolean` based on `node.options.occurrence`, returns summary.
 
 ---
 
@@ -177,11 +175,13 @@ rawText (string)
         ▼
   ExecutionStore.executeNode(index)
         │
-        ├── type 'cmd'     → invoke('execute_bash_command')
-        ├── type 'file'    → invoke('write_file')
-        ├── type 'tree'    → invoke('list_directory')
-        ├── type 'read'    → executeRead() → invoke('read_file_with_line_numbers')
-        ├── type 'replace' → executeReplace() → invoke('replace_in_file')
+        ├──► this.strategies[node.type].execute(node)
+        │       │
+        │       ├── CmdStrategy      → invoke('execute_bash_command')
+        │       ├── FileStrategy     → invoke('write_file')
+        │       ├── TreeStrategy     → invoke('list_directory')
+        │       ├── ReadStrategy     → invoke('read_file_with_line_numbers')
+        │       └── ReplaceStrategy  → invoke('replace_in_file')
         │
         ▼
   ActionNode.result  →  UI displays stdout/stderr
@@ -207,19 +207,24 @@ LLMParser.ts     → ../types (ActionNode)
                  → LLMParserPrivate/*
 ```
 
-### Commands
+### Strategies
 
 ```
-readCommand.ts    → @tauri-apps/api/core
-replaceCommand.ts → @tauri-apps/api/core
+types.ts           (no dependencies)
+CmdStrategy.ts     → @tauri-apps/api/core
+FileStrategy.ts    → @tauri-apps/api/core
+TreeStrategy.ts    → @tauri-apps/api/core
+ReadStrategy.ts    → @tauri-apps/api/core
+ReplaceStrategy.ts → @tauri-apps/api/core
+index.ts           → All strategies, ../types
 ```
 
 ### Store
 
 ```
 ExecutionStore.ts → LLMParser.ts
-                  → Commands/readCommand.ts
-                  → Commands/replaceCommand.ts
+                  → Strategies/index.ts (defaultStrategies)
+                  → Strategies/types.ts (ActionStrategy)
 ```
 
 - No other module may import from `LLMParserPrivate/`. Tests import re-exported symbols from `LLMParser.ts`.
@@ -234,15 +239,15 @@ ExecutionStore.ts → LLMParser.ts
 | `TagScanner.test.ts` | 11 | Scanner smoke tests |
 | `LLMParserRead.test.ts` | 11 | `<read>` tag extraction and ActionNode generation |
 | `LLMParserReplace.test.ts` | 4 | `<replace>` tag extraction and ActionNode generation |
-| `readCommand.test.ts` | 9 | `executeRead` backend calls and line formatting |
-| `replaceCommand.test.ts` | 2 | `executeReplace` backend calls |
-| **Total** | **96** | |
+| `ReadStrategy.test.ts` | 7 | `ReadStrategy` backend calls and line formatting |
+| `ReplaceStrategy.test.ts` | 2 | `ReplaceStrategy` backend calls |
+| **Total** | **94** | |
 
 ---
 
 ## 🗺️ Extension points
 
-- **New tag type**: Add a `case` in `extractor.ts`, a command in `Commands/`, a Tauri command in `lib.rs`, a dispatch branch in `ExecutionStore.ts`, and a test file.
+- **New tag type**: Add a `case` in `extractor.ts`, a strategy in `Strategies/` (register in `index.ts`), a Tauri command in `lib.rs`, and a test file. No changes needed in `ExecutionStore.ts`.
 - **Additional escaping rules**: Extend `unescapeXml.ts`.
 - **Custom backtick protection**: Modify `getInlineBacktickRanges`.
 - **New shell support**: Add a shell selector in settings and branch in `execute_bash_command`.

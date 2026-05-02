@@ -1,6 +1,26 @@
+import { invoke } from '@tauri-apps/api/core';
 import { ActionNode, ExecutionResult } from '../../types';
 import { ActionStrategy } from './types';
-import { executeReplace, ReplaceOptions } from '../Commands/replaceCommand';
+
+interface ReplaceOptions {
+  occurrence?: 'first' | 'all';
+}
+
+async function executeReplace(
+  path: string,
+  oldStr: string,
+  newStr: string,
+  options: ReplaceOptions = {}
+): Promise<string> {
+  const occurrence = options.occurrence ?? 'first';
+  const result: { replaced: number } = await invoke('replace_in_file', {
+    path,
+    oldStr,
+    newStr,
+    all: occurrence === 'all',
+  });
+  return `Replaced ${result.replaced} occurrence(s) in ${path}.`;
+}
 
 export class ReplaceStrategy implements ActionStrategy {
   async execute(node: ActionNode): Promise<ExecutionResult> {
