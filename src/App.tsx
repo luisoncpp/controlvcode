@@ -6,6 +6,7 @@ import { QueueViewer } from './components/QueueViewer';
 import { FeedbackPanel } from './components/FeedbackPanel';
 import { ChangeTracker } from "./components/ChangeTracker/ChangeTracker";
 import { ChangeTrackerUI } from "./components/ChangeTracker/ChangeTrackerUI";
+import { PromptBuilderComponent } from "./components/PromptBuilder";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -30,7 +31,6 @@ export function App() {
     }
   };
 
-  // Abreviar ruta larga para mostrar solo las últimas dos carpetas
   const shortDir = () => {
     const parts = projectDir.split(/[\\/]/).filter(Boolean);
     if (parts.length <= 2) return projectDir;
@@ -93,6 +93,7 @@ export function App() {
             <QueueViewer />
             <FeedbackPanel />
             <ChangeTrackerUI tracker={changeTracker} />
+            <PromptBuilderComponent feedbackXml={store.feedbackPrompt.value} />
           </div>
         </div>
 

@@ -6,6 +6,7 @@ use std::fs;
 use std::fmt::Write;
 use std::sync::Mutex;
 use serde::Serialize;
+use walkdir::WalkDir;
 
 const IGNORED_DIRS: &[&str] = &[
     ".git",
@@ -53,6 +54,44 @@ fn set_project_dir(path: String) -> Result<String, String> {
         *guard = Some(new_path.clone());
     }
     Ok(project_root().to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn search_files(query: String) -> Result<Vec<String>, String> {
+    let root = project_root();
+    let mut results = Vec::new();
+    let query_lower = query.to_lowercase();
+
+    for entry in WalkDir::new(&root).min_depth(1).into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let relative = path.strip_prefix(&root).unwrap_or(path);
+        let name = relative.to_string_lossy().to_lowercase();
+        
+        // Ignorar directorios y archivos en carpetas ignoradas
+        if IGNORED_DIRS.iter().any(|d| name.starts_with(&format!("{}/", d)) || name.starts_with(&format!("{}\\", d))) {
+            continue;
+        }
+        
+        if name.contains(&query_lower) {
+            results.push(relative.to_string_lossy().to_string());
+        }
+        
+        // Limitar resultados para rendimiento
+        if results.len() >= 20 {
+            break;
+        }
+    }
+
+    Ok(results)
+}
+
+#[tauri::command]
+fn read_file_content(path: String) -> Result<String, String> {
+    let file_path = project_root().join(&path);
+    if !file_path.exists() {
+        return Err(format!("El archivo '{}' no existe.", path));
+    }
+    fs::read_to_string(&file_path).map_err(|e| format!("Error leyendo {}: {}", path, e))
 }
 
 #[tauri::command]
@@ -145,6 +184,8 @@ pub fn run() {
             list_directory,
             get_project_dir,
             set_project_dir,
+            search_files,
+            read_file_content,
             git_commands::snapshot_create,
             git_commands::snapshot_diff,
             git_commands::snapshot_restore
