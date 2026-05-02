@@ -11,7 +11,7 @@ import { ReplaceStrategy } from './ReplaceStrategy';
  * Para añadir un nuevo comando, crea una clase que implemente ActionStrategy
  * y regístrala aquí con su tipo correspondiente.
  */
-export const strategies: Record<ActionType, ActionStrategy> = {
+export const defaultStrategies: Record<ActionType, ActionStrategy> = {
   cmd: new CmdStrategy(),
   file: new FileStrategy(),
   tree: new TreeStrategy(),

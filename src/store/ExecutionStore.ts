@@ -1,9 +1,16 @@
 import { signal, computed } from "@preact/signals";
 import { ActionNode, ExecutionResult } from "../types";
 import { LLMParser } from "./LLMParser";
-import { strategies } from "./Strategies";
+import { ActionStrategy } from "./Strategies/types";
+import { defaultStrategies } from "./Strategies";
 
 export class ExecutionStore {
+  private strategies: Record<string, ActionStrategy>;
+  
+  constructor(customStrategies?: Record<string, ActionStrategy>) {
+    this.strategies = customStrategies ?? defaultStrategies;
+  }
+
   public rawInput = signal("");
   public nodes = signal<ActionNode[]>([]);
   public feedbackPrompt = computed(() => this.generateFeedback());
@@ -30,7 +37,7 @@ export class ExecutionStore {
     this.nodes.value = [...nodes]; 
 
     try {
-      const strategy = strategies[node.type];
+      const strategy = this.strategies[node.type];
       if (!strategy) {
         throw new Error(`Tipo de acción desconocido: ${node.type}`);
       }
