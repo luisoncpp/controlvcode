@@ -134,8 +134,11 @@ Detects inline backtick spans and triple-backtick fenced blocks. Tags inside the
 ### `LLMParserPrivate/scanner.ts`
 Character-by-character XML parser that produces `RawTag[]`. Handles nesting, self-closing tags, attributes with single/double quotes, and malformed input gracefully.
 
+### `LLMParserPrivate/tagSchemas.ts`
+Declarative catalog mapping tag names (e.g., `'read'`) to their `TagSchema`. Defines which XML attributes map to `payload`, `content`, `newContent`, or `options`. Adding a new tag requires only adding a new entry to the `TAG_SCHEMAS` dictionary.
+
 ### `LLMParserPrivate/extractor.ts`
-Converts `RawTag[]` to `ExtractedNode[]` via a `switch` on tag name. Applies `unescapeXml` to all payloads and contents. New tools are added here as new `case` branches.
+Generic engine that converts `RawTag[]` to `ExtractedNode[]`. It reads `TAG_SCHEMAS` to know how to map attributes and content for any given tag, applying `unescapeXml` automatically. No `switch` statements or tag-specific logic live here.
 
 ### `ExecutionStore.ts`
 Orchestrates the full lifecycle:
@@ -197,7 +200,8 @@ rawText (string)
 unescapeXml.ts   (no dependencies)
 backtickRanges.ts → types.ts
 scanner.ts       → types.ts, backtickRanges.ts
-extractor.ts     → types.ts, scanner.ts, unescapeXml.ts
+tagSchemas.ts    → types.ts (TagSchema)
+extractor.ts     → types.ts, scanner.ts, unescapeXml.ts, tagSchemas.ts
 ```
 
 ### Public facade
@@ -247,7 +251,7 @@ ExecutionStore.ts → LLMParser.ts
 
 ## 🗺️ Extension points
 
-- **New tag type**: Add a `case` in `extractor.ts`, a strategy in `Strategies/` (register in `index.ts`), a Tauri command in `lib.rs`, and a test file. No changes needed in `ExecutionStore.ts`.
+- **New tag type**: Add an entry in `tagSchemas.ts`, a strategy in `Strategies/` (register in `index.ts`), a Tauri command in `lib.rs`, and a test file. No changes needed in `ExecutionStore.ts` or `extractor.ts`.
 - **Additional escaping rules**: Extend `unescapeXml.ts`.
 - **Custom backtick protection**: Modify `getInlineBacktickRanges`.
 - **New shell support**: Add a shell selector in settings and branch in `execute_bash_command`.

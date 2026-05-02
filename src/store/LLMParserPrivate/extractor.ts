@@ -1,58 +1,53 @@
-import type { ExtractedNode } from './types';
+import type { RawTag, ExtractedNode } from './types';
 import { scanTags } from './scanner';
 import { unescapeXml } from './unescapeXml';
+import { TAG_SCHEMAS } from './tagSchemas';
+import type { TagSchema } from './tagSchemas';
+
+function extractField(source: 'content' | string, tag: RawTag, trim = false): string {
+  if (source === 'content') {
+    const raw = tag.content ?? '';
+    return unescapeXml(trim ? raw.trim() : raw);
+  }
+  return unescapeXml(tag.attributes[source] ?? '');
+}
 
 export function extractNodes(rawText: string): ExtractedNode[] {
   const rawTags = scanTags(rawText);
   const nodes: ExtractedNode[] = [];
 
   for (const tag of rawTags) {
-    switch (tag.name) {
-      case 'cmd':
-        nodes.push({
-          type: 'cmd',
-          payload: unescapeXml((tag.content ?? '').trim()),
-        });
-        break;
-      case 'file':
-        nodes.push({
-          type: 'file',
-          payload: unescapeXml(tag.attributes['path'] ?? ''),
-          content: unescapeXml(tag.content ?? ''),
-        });
-        break;
-      case 'tree':
-        nodes.push({
-          type: 'tree',
-          payload: unescapeXml(tag.attributes['path'] ?? ''),
-        });
-        break;
-      case 'read': {
-        const opts: Record<string, string> = {};
-        if (tag.attributes['start']) opts.start = tag.attributes['start'];
-        if (tag.attributes['end']) opts.end = tag.attributes['end'];
-        if (tag.attributes['line']) opts.line = tag.attributes['line'];
-        if (tag.attributes['count']) opts.count = tag.attributes['count'];
-        nodes.push({
-          type: 'read',
-          payload: unescapeXml(tag.attributes['path'] ?? ''),
-          options: Object.keys(opts).length > 0 ? opts : undefined,
-        });
-        break;
+    const schema: TagSchema | undefined = TAG_SCHEMAS[tag.name];
+    if (!schema) continue;
+
+    const node: any = { type: tag.name };
+
+    if (schema.payload !== undefined) {
+      node.payload = extractField(schema.payload, tag, schema.trimPayload);
+    }
+
+    if (schema.content !== undefined) {
+      node.content = extractField(schema.content, tag);
+    }
+
+    if (schema.newContent !== undefined) {
+      node.newContent = extractField(schema.newContent, tag);
+    }
+
+    if (schema.options) {
+      const opts: Record<string, string> = {};
+      for (const key of schema.options) {
+        const val = tag.attributes[key];
+        if (val) {
+          opts[key] = val;
+        }
       }
-      case 'replace': {
-        const ropts: Record<string, string> = {};
-        if (tag.attributes['occurrence']) ropts.occurrence = tag.attributes['occurrence'];
-        nodes.push({
-          type: 'replace',
-          payload: unescapeXml(tag.attributes['path'] ?? ''),
-          content: unescapeXml(tag.attributes['old'] ?? ''),
-          newContent: unescapeXml(tag.attributes['new'] ?? ''),
-          options: Object.keys(ropts).length > 0 ? ropts : undefined,
-        });
-        break;
+      if (Object.keys(opts).length > 0) {
+        node.options = opts;
       }
     }
+
+    nodes.push(node as ExtractedNode);
   }
 
   return nodes;
