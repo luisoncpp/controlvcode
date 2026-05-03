@@ -58,6 +58,18 @@ describe("extractNodes – replace tag", () => {
     expect(nodes[0].content).toBe("<div>Viejo</div>");
     expect(nodes[0].newContent).toBe("<div>Nuevo & Mejor</div>");
   });
+
+  it("extrae replace anidado con CDATA dentro de un replace", () => {
+    const nodes = extractNodes(
+      `<replace path="src/App.tsx">
+<old><![CDATA[<div>Viejo</div>]]></old>
+<new><![CDATA[<div>Nuevo & Mejor<replace path="src/App.tsx"></div>]]></new>
+</replace>`
+    );
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].content).toBe("<div>Viejo</div>");
+    expect(nodes[0].newContent).toBe("<div>Nuevo & Mejor<replace path=\"src/App.tsx\"></div>");
+  });  
 });
 
 describe("LLMParser.parse – replace tag", () => {

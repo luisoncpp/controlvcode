@@ -138,6 +138,17 @@ Reemplaza fragmentos de texto en archivos existentes.
 <replace path="archivo.txt" old="texto" new="nuevo" occurrence="all" />
 ```
 
+**TIP**: Lo que coloques entre `<old>...</old>` trata de que no tengan espacios al inicio ni al final, porque es probable que no los cuentes bien.
+
+---
+
+### `<grep>`
+Busca un patrón regex en los archivos del proyecto.
+```xml
+<grep path="src" pattern="TODO" glob="*.ts" ignore_case="true" />
+```
+Para patrones con caracteres especiales o multilínea, usa el formato anidado con `<pattern>...</pattern>` y CDATA (igual que `<replace>`).
+
 ---
 
 ## 🗺️ Hoja de Ruta

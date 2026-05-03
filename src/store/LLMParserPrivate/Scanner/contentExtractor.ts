@@ -46,6 +46,15 @@ export function tryExtractStandardContent({
     i = advanceIndexPastProtectedRanges(i, protectedRanges);
     if (i >= text.length) break;
 
+    // Saltar bloques CDATA encontrados en medio del contenido
+    if (text.substring(i, i + CDATA_START.length) === CDATA_START) {
+      const cdataEnd = text.indexOf(CDATA_END, i + CDATA_START.length);
+      if (cdataEnd !== -1) {
+        i = cdataEnd + CDATA_END.length;
+        continue;
+      }
+    }
+
     if (text.substring(i, i + closeTag.length) === closeTag) {
       depth--;
       if (depth === 0) return { content: text.substring(start, i), endIndex: i + closeTag.length };

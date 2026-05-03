@@ -39,4 +39,9 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     newContent: 'new',
     options: ['occurrence'],
   },
+  grep: {
+    payload: 'path',
+    content: 'pattern',
+    options: ['glob', 'ignore_case'],
+  },
 };

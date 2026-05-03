@@ -19,6 +19,7 @@ Siempre que sugieras acciones técnicas (instalar librerías, ejecutar scripts, 
     </replace>
     ```
     También soporta el formato corto como atributos: `<replace path="ruta" old="txt" new="txt" />`
+*   <grep path="ruta" pattern="regex" glob="*.ext" ignore_case="true|false"> — Busca un patrón regex en archivos del proyecto. Soporta formato anidado con <pattern> y CDATA para patrones complejos.
 
 **Reglas de formato:**
 *   No incluyas comentarios ni texto explicativo dentro de las etiquetas.
