@@ -1,3 +1,4 @@
+
 import { describe, it, expect } from "vitest";
 import { scanTags, extractNodes } from "./LLMParser";
 
@@ -6,6 +7,7 @@ describe("scanTags", () => {
     const tags = scanTags("<cmd>echo hola</cmd>");
     expect(tags).toHaveLength(1);
     expect(tags[0]).toMatchObject({ name: "cmd", content: "echo hola", isSelfClosing: false });
+    expect(tags[0].children).toEqual([]); // Los tags simples no tienen hijos
   });
 
   it("extrae un tag self-closing", () => {
@@ -22,13 +24,22 @@ describe("scanTags", () => {
     expect(tags[0].content).toBe("contenido");
   });
 
-  it("maneja anidación del mismo tag", () => {
+  it("maneja anidación del mismo tag y popula children", () => {
     const text = '<file path="a.txt"><file path="b.txt">inner</file>outer</file>';
     const tags = scanTags(text);
     expect(tags).toHaveLength(1);
     expect(tags[0].name).toBe("file");
     expect(tags[0].attributes["path"]).toBe("a.txt");
     expect(tags[0].content).toBe('<file path="b.txt">inner</file>outer');
+    
+    // Verificar hijos parseados
+    expect(tags[0].children).toHaveLength(1);
+    expect(tags[0].children[0]).toMatchObject({
+      name: "file",
+      content: "inner",
+      isSelfClosing: false
+    });
+    expect(tags[0].children[0].attributes["path"]).toBe("b.txt");
   });
 
   it("ignora tags dentro de backticks inline", () => {
@@ -50,6 +61,63 @@ describe("scanTags", () => {
     const text = "<cmd>sin cerrar";
     const tags = scanTags(text);
     expect(tags).toHaveLength(0);
+  });
+});
+
+describe("scanTags con anidación (AST Recursivo)", () => {
+  it("parsea etiquetas replace con hijos old y new", () => {
+    const xml = `<replace path="archivo.txt">
+<old>texto viejo</old>
+<new>texto nuevo</new>
+</replace>`;
+    const tags = scanTags(xml);
+    expect(tags).toHaveLength(1);
+    
+    const replaceTag = tags[0];
+    expect(replaceTag.name).toBe("replace");
+    expect(replaceTag.attributes.path).toBe("archivo.txt");
+    expect(replaceTag.children.length).toBe(2);
+
+    const oldTag = replaceTag.children.find(c => c.name === "old");
+    const newTag = replaceTag.children.find(c => c.name === "new");
+
+    expect(oldTag).toBeDefined();
+    expect(oldTag?.content).toBe("texto viejo");
+    expect(oldTag?.children).toEqual([]); // Hoja
+
+    expect(newTag).toBeDefined();
+    expect(newTag?.content).toBe("texto nuevo");
+  });
+
+  it("maneja CDATA dentro de etiquetas anidadas", () => {
+    const xml = `<replace path="index.html">
+<old><![CDATA[<div>Viejo</div>]]></old>
+<new><![CDATA[<div>Nuevo & Mejor</div>]]></new>
+</replace>`;
+    const tags = scanTags(xml);
+    const replaceTag = tags[0];
+
+    const oldTag = replaceTag.children.find(c => c.name === "old");
+    const newTag = replaceTag.children.find(c => c.name === "new");
+
+    expect(oldTag?.isCData).toBe(true);
+    expect(oldTag?.content).toBe("<div>Viejo</div>");
+    
+    expect(newTag?.isCData).toBe(true);
+    expect(newTag?.content).toBe("<div>Nuevo & Mejor</div>");
+  });
+
+  it("mantiene compatibilidad con replace en atributos (sin hijos)", () => {
+    const xml = `<replace path="file.txt" old="foo" new="bar" occurrence="all" />`;
+    const tags = scanTags(xml);
+    expect(tags).toHaveLength(1);
+    
+    const tag = tags[0];
+    expect(tag.name).toBe("replace");
+    expect(tag.attributes.old).toBe("foo");
+    expect(tag.attributes.new).toBe("bar");
+    expect(tag.content).toBeNull();
+    expect(tag.children).toEqual([]);
   });
 });
 

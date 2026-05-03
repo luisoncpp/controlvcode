@@ -1,8 +1,9 @@
+
 import { describe, it, expect } from "vitest";
 import { extractNodes, LLMParser } from "./LLMParser";
 
 describe("extractNodes – replace tag", () => {
-  it("extrae un replace tag con old y new", () => {
+  it("extrae un replace tag con old y new (atributos)", () => {
     const nodes = extractNodes(
       '<replace path="src/App.tsx" old="useState(0)" new="useSignal(0)" />'
     );
@@ -22,12 +23,40 @@ describe("extractNodes – replace tag", () => {
     expect(nodes[0].options).toEqual({ occurrence: "all" });
   });
 
-  it("aplica unescape a old y new", () => {
+  it("aplica unescape a old y new (atributos)", () => {
     const nodes = extractNodes(
       '<replace path="x.ts" old="&amp;lt;" new="&amp;gt;" />'
     );
     expect(nodes[0].content).toBe("&lt;");
     expect(nodes[0].newContent).toBe("&gt;");
+  });
+
+  it("extrae replace anidado con old y new", () => {
+    const nodes = extractNodes(
+      `<replace path="src/App.tsx">
+<old>useState(0)</old>
+<new>useSignal(0)</new>
+</replace>`
+    );
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toEqual({
+      type: "replace",
+      payload: "src/App.tsx",
+      content: "useState(0)",
+      newContent: "useSignal(0)",
+    });
+  });
+
+  it("extrae replace anidado con CDATA", () => {
+    const nodes = extractNodes(
+      `<replace path="src/App.tsx">
+<old><![CDATA[<div>Viejo</div>]]></old>
+<new><![CDATA[<div>Nuevo & Mejor</div>]]></new>
+</replace>`
+    );
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].content).toBe("<div>Viejo</div>");
+    expect(nodes[0].newContent).toBe("<div>Nuevo & Mejor</div>");
   });
 });
 

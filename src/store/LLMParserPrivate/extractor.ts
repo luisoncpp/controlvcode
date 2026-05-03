@@ -1,3 +1,4 @@
+
 import type { RawTag, ExtractedNode } from './types';
 import { scanTags } from './Scanner';
 import { unescapeXml } from './unescapeXml';
@@ -11,7 +12,25 @@ function extractField(source: 'content' | string, tag: RawTag, trim = false): st
     if (tag.isCData) return trim ? raw.trim() : raw;
     return unescapeXml(trim ? raw.trim() : raw);
   }
-  return unescapeXml(tag.attributes[source] ?? '');
+
+  // 1. Check attribute first (legacy support)
+  const attrValue = tag.attributes[source];
+  if (attrValue !== undefined) {
+    return unescapeXml(attrValue);
+  }
+
+  // 2. Fallback to child tag (e.g., <old>, <new> inside <replace>)
+  if (tag.children && tag.children.length > 0) {
+    const childTag = tag.children.find(c => c.name === source);
+    if (childTag) {
+      const raw = childTag.content ?? '';
+      // Respect CDATA in children as well
+      if (childTag.isCData) return trim ? raw.trim() : raw;
+      return unescapeXml(trim ? raw.trim() : raw);
+    }
+  }
+
+  return '';
 }
 
 export function extractNodes(rawText: string): ExtractedNode[] {

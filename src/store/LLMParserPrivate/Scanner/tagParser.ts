@@ -1,7 +1,41 @@
+
 import type { RawTag, Range } from '../types';
-import { parseTagNameAt } from './textUtils';
+import { getInlineBacktickRanges } from '../backtickRanges';
+import { advanceIndexPastProtectedRanges, parseTagNameAt } from './textUtils';
 import { parseAttributesAt } from './attributeParser';
 import { extractContent } from './contentExtractor';
+
+// Movemos scanTags aquí para permitir la llamada recursiva desde parseOpenTagWithContent
+// sin generar dependencias circulares.
+export function scanTags(rawText: string): RawTag[] {
+  const protectedRanges = getInlineBacktickRanges(rawText);
+  const tags: RawTag[] = [];
+  let index = 0;
+
+  while (index < rawText.length) {
+    index = advanceIndexPastProtectedRanges(index, protectedRanges);
+    if (index >= rawText.length) break;
+
+    if (rawText[index] !== '<') {
+      index++;
+      continue;
+    }
+
+    const parsed = tryParseTagAt({
+      text: rawText,
+      openingBracketIndex: index,
+      protectedRanges,
+    });
+    if (parsed) {
+      tags.push(parsed.tag);
+      index = parsed.nextIndex;
+    } else {
+      index++; // avanzar para no quedar atrapado
+    }
+  }
+
+  return tags;
+}
 
 interface ParseSelfClosingTagParams {
   text: string;
@@ -28,6 +62,7 @@ function parseSelfClosingTag({
         name: tagName.toLowerCase(),
         attributes: attrs,
         content: null,
+        children: [],
         isSelfClosing: true,
         startIndex: tagStart,
         endIndex: i,
@@ -64,11 +99,16 @@ function parseOpenTagWithContent({
   });
   if (content === null) return null;
 
+  // Llamada recursiva para obtener los hijos a partir del contenido extraído
+  // IMPORTANTE: Si el contenido es CDATA, es texto literal y NO se debe parsear
+  const children = (content && !isCData) ? scanTags(content) : [];
+
   return {
     tag: {
       name: tagName.toLowerCase(),
       attributes: attrs,
       content,
+      children,
       isSelfClosing: false,
       isCData,
       startIndex: tagStart,

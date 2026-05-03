@@ -1,3 +1,4 @@
+
 # ControlVCode 🛠️
 
 **ControlVCode** es un puente de ejecución local diseñado para eliminar la fricción entre las respuestas de un LLM (Large Language Model) y tu entorno de desarrollo. Permite parsear, autorizar y ejecutar comandos de terminal y manipulaciones de archivos directamente desde una interfaz de escritorio segura.
@@ -17,10 +18,11 @@ El proyecto utiliza una arquitectura de **"Humano en el bucle" (Human-in-the-loo
 
 ### Parseo y Ejecución
 *   **Parser Inteligente:** Detecta automáticamente bloques `<cmd>`, `<file>`, `<tree>`, `<read>` y `<replace>` dentro de cualquier texto pegado. Ignora etiquetas mencionadas dentro de backticks inline (`` `...` ``) para evitar ejecuciones accidentales.
-*   **Bloques CDATA:** Soporta `<![CDATA[ ... ]]>` para escribir archivos completos (como JSX o HTML) sin necesidad de escapar `<` ni `>`. Si el código contiene la secuencia literal `]]>`, el protocolo usa el token `__CDATA_CLOSE__` para evitar romper el XML.
+*   **AST Recursivo:** Soporta etiquetas anidadas nativamente, permitiendo estructuras complejas como el formato anidado de `<replace>`.
+*   **Bloques CDATA:** Soporta `<![CDATA[ ... ]]>` para escribir archivos completos (como JSX o HTML) sin necesidad de escapar `<` ni `>`(con la restricción de que está prohibido incluir `]]>` dentro del `CDATA`).
 *   **Escritura de Archivos:** Soporta la etiqueta `<file>` para crear o sobrescribir archivos directamente desde la respuesta del LLM.
 *   **Lectura de Archivos:** Soporta la etiqueta `<read>` para leer archivos con numeración de líneas, incluyendo rangos (`start`, `end`, `line`, `count`).
-*   **Reemplazo Quirúrgico:** Soporta la etiqueta `<replace>` para sustituir fragmentos de texto en archivos existentes (primera ocurrencia o todas).
+*   **Reemplazo Quirúrgico:** Soporta la etiqueta `<replace>` para sustituir fragmentos de texto en archivos existentes (primera ocurrencia o todas). Ahora soporta anidación de tags `<old>` y `<new>`.
 *   **Exploración de Directorios:** Soporta la etiqueta `<tree>` para mostrar la estructura de carpetas del proyecto, ignorando directorios irrelevantes (`node_modules`, `.git`, `target`, etc.).
 
 ### Cola y Feedback
@@ -90,18 +92,14 @@ Ejecuta un comando en la terminal local.
 ### `<file>`
 Escribe contenido directamente en un archivo del proyecto.
 ```xml
-<file path="src/components/Button.tsx">
-import { h } from 'preact';
-
-export function Button() {
-  return <button>Click me</button>;
-}
+<file path="texto.txt">
+Hola mundo!
 </file>
 ```
 
-Lo que está dentro de las etiquetas sustituye las secuencias de escape `&lt;`, `&gt;`, `&amp;` y `&quot;` (no es obligatorio usarlas pero pueden servir para escribir un `</file>` adentro de un archivo, por ejemplo(con `&lt;/file&gt;`)).
+Lo que está dentro de las etiquetas sustituye las secuencias de escape `&lt;`, `&gt;`, `&amp;` y `&quot;`.
 
-También puedes usar bloques `CDATA`, incluso permiten escribir `</file>` adentro de un bloque `<file>` sin sustituir secuencias de escape:
+Se recomienda usar bloques `CDATA` para escribir código, así es posible escribir tags en el código sin confundir al parser de XML, incluso permiten escribir `</file>` adentro de un bloque `<file>` y sin sustituir secuencias de escape:
 
 ```xml
 <file path="src/components/Button.tsx">
@@ -122,6 +120,22 @@ export function MathHTML() {
 Muestra la estructura de directorios a partir de la ruta indicada.
 ```xml
 <tree path="src/components" />
+```
+
+### `<replace>`
+Reemplaza fragmentos de texto en archivos existentes.
+
+**Formato anidado con CDATA (Recomendado):** Permite reemplazar textos complejos sin preocuparse por comillas o caracteres XML especiales.
+```xml
+<replace path="src/index.html" occurrence="first">
+<old><![CDATA[<div>Viejo</div>]]></old>
+<new><![CDATA[<div>Nuevo & Mejor</div>]]></new>
+</replace>
+```
+
+**Formato con atributos (Legacy):**
+```xml
+<replace path="archivo.txt" old="texto" new="nuevo" occurrence="all" />
 ```
 
 ---
