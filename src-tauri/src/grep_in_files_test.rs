@@ -4,6 +4,7 @@ mod tests {
     use std::path::PathBuf;
     use crate::grep_in_files::{
         search_files_with_regex,
+        SearchConfig,
         glob_to_regex,
         is_binary_extension,
         is_ignored_path,
@@ -70,13 +71,13 @@ mod tests {
     #[test]
     fn test_search_in_file() {
         let (_tmp, root) = setup_fixture();
-        let results = search_files_with_regex(
-            &root,
-            &root.join("src/main.rs"),
-            "console",
-            None,
-            false,
-        )
+        let results = search_files_with_regex(&SearchConfig {
+            root: &root,
+            search_path: &root.join("src/main.rs"),
+            pattern: "console",
+            glob: None,
+            ignore_case: false,
+        })
         .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].file, "src/main.rs");
@@ -87,13 +88,13 @@ mod tests {
     #[test]
     fn test_search_in_directory_recursive() {
         let (_tmp, root) = setup_fixture();
-        let results = search_files_with_regex(
-            &root,
-            &root.join("src"),
-            "console",
-            None,
-            false,
-        )
+        let results = search_files_with_regex(&SearchConfig {
+            root: &root,
+            search_path: &root.join("src"),
+            pattern: "console",
+            glob: None,
+            ignore_case: false,
+        })
         .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].file, "src/main.rs");
@@ -102,13 +103,13 @@ mod tests {
     #[test]
     fn test_search_ignores_binaries() {
         let (_tmp, root) = setup_fixture();
-        let results = search_files_with_regex(
-            &root,
-            &root.join("src"),
-            "PNG",
-            None,
-            false,
-        )
+        let results = search_files_with_regex(&SearchConfig {
+            root: &root,
+            search_path: &root.join("src"),
+            pattern: "PNG",
+            glob: None,
+            ignore_case: false,
+        })
         .unwrap();
         assert_eq!(results.len(), 0);
     }
@@ -116,13 +117,13 @@ mod tests {
     #[test]
     fn test_search_respects_ignored_dirs() {
         let (_tmp, root) = setup_fixture();
-        let results = search_files_with_regex(
-            &root,
-            &root,
-            "ignore",
-            None,
-            false,
-        )
+        let results = search_files_with_regex(&SearchConfig {
+            root: &root,
+            search_path: &root,
+            pattern: "ignore",
+            glob: None,
+            ignore_case: false,
+        })
         .unwrap();
         assert_eq!(results.len(), 0);
     }
@@ -130,13 +131,13 @@ mod tests {
     #[test]
     fn test_search_case_insensitive() {
         let (_tmp, root) = setup_fixture();
-        let results = search_files_with_regex(
-            &root,
-            &root.join("src/lib.rs"),
-            "todo",
-            None,
-            true,
-        )
+        let results = search_files_with_regex(&SearchConfig {
+            root: &root,
+            search_path: &root.join("src/lib.rs"),
+            pattern: "todo",
+            glob: None,
+            ignore_case: true,
+        })
         .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].content, "// TODO: fix this");
@@ -145,13 +146,13 @@ mod tests {
     #[test]
     fn test_search_with_glob_filter() {
         let (_tmp, root) = setup_fixture();
-        let results = search_files_with_regex(
-            &root,
-            &root,
-            "console",
-            Some("*.ts"),
-            false,
-        )
+        let results = search_files_with_regex(&SearchConfig {
+            root: &root,
+            search_path: &root,
+            pattern: "console",
+            glob: Some("*.ts"),
+            ignore_case: false,
+        })
         .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].file, "test/app.test.ts");
@@ -160,13 +161,13 @@ mod tests {
     #[test]
     fn test_search_with_glob_and_case_insensitive() {
         let (_tmp, root) = setup_fixture();
-        let results = search_files_with_regex(
-            &root,
-            &root,
-            "console",
-            Some("*.rs"),
-            false,
-        )
+        let results = search_files_with_regex(&SearchConfig {
+            root: &root,
+            search_path: &root,
+            pattern: "console",
+            glob: Some("*.rs"),
+            ignore_case: false,
+        })
         .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].file, "src/main.rs");
@@ -175,13 +176,13 @@ mod tests {
     #[test]
     fn test_search_nonexistent_path_errors() {
         let (_tmp, root) = setup_fixture();
-        let err = search_files_with_regex(
-            &root,
-            &root.join("nonexistent"),
-            "foo",
-            None,
-            false,
-        )
+        let err = search_files_with_regex(&SearchConfig {
+            root: &root,
+            search_path: &root.join("nonexistent"),
+            pattern: "foo",
+            glob: None,
+            ignore_case: false,
+        })
         .unwrap_err();
         assert!(err.contains("no existe"));
     }

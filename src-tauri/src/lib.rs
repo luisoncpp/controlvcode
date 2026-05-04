@@ -142,7 +142,7 @@ fn replace_in_file(path: String, old_str: String, new_str: String, all: bool) ->
     let content = fs::read_to_string(&file_path)
         .map_err(|e| format!("Error leyendo {}: {}", path, e))?;
     if !content.contains(&old_str) {
-        return Err(format!("No se encontr&oacute; el texto a reemplazar en \"{}\": {}.", path, old_str));
+        return Err(format!("No se encontró el texto a reemplazar en \"{}\": {}.", path, old_str));
     }
     let replaced = if all {
         content.matches(&old_str).count()
