@@ -1,6 +1,9 @@
 pub mod git_commands;
 pub mod grep_in_files;
 
+#[cfg(test)]
+mod grep_in_files_test;
+
 use std::process::Command;
 use std::path::{PathBuf, Path};
 use std::fs;
