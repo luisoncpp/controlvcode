@@ -6,6 +6,7 @@ import { TreeStrategy } from './TreeStrategy';
 import { ReadStrategy } from './ReadStrategy';
 import { ReplaceStrategy } from './ReplaceStrategy';
 import { GrepStrategy } from './GrepStrategy';
+import { PatchStrategy } from './PatchStrategy';
 
 /**
  * Registro de estrategias. 
@@ -19,6 +20,7 @@ export const defaultStrategies: Record<ActionType, ActionStrategy> = {
   read: new ReadStrategy(),
   replace: new ReplaceStrategy(),
   grep: new GrepStrategy(),
+  patch: new PatchStrategy()
 };
 
 export type { ActionStrategy } from './types';

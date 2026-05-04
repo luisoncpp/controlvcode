@@ -10,6 +10,7 @@ export class ChangeTracker {
 
   private dirty = false;
   private gitAvailable = true;
+  private pendingDiffRequest = false;
 
   onInstructionsChange() {
     this.dirty = true;
@@ -26,6 +27,26 @@ export class ChangeTracker {
     } catch {
       this.gitAvailable = false;
       this.error.value = "No se detectó un repositorio Git. El diff estará deshabilitado.";
+    }
+
+    // Si se pidió el diff mientras se creaba el snapshot, computarlo ahora
+    if (this.pendingDiffRequest) {
+      this.pendingDiffRequest = false;
+      if (this.snapshotHash.value) {
+        this.computeDiff();
+      }
+    }
+  }
+
+  /**
+   * Pide el diff. Si el snapshot ya existe, lo calcula inmediatamente.
+   * Si no (aún se está creando), encola la petición para cuando termine.
+   */
+  requestDiffWhenReady() {
+    if (this.snapshotHash.value) {
+      this.computeDiff();
+    } else if (this.gitAvailable) {
+      this.pendingDiffRequest = true;
     }
   }
 

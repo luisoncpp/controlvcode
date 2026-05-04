@@ -1,5 +1,3 @@
-import type { RawTag } from './types';
-
 /**
  * Defines how to map a RawTag's attributes and content into an ExtractedNode.
  * - 'content' means the text inside the XML tag.
@@ -43,5 +41,9 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     payload: 'path',
     content: 'pattern',
     options: ['glob', 'ignore_case'],
+  },
+  patch: {
+    payload: 'path',
+    content: 'content',
   },
 };

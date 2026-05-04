@@ -1,12 +1,12 @@
 import { useState } from "preact/hooks";
-import type { DiffHunk as DiffHunkType, DiffLine, LineGroup } from "./types";
+import type { DiffHunk as DiffHunkType, DiffLine as DiffType, LineGroup } from "./types";
 import { DiffLine } from "./DiffLine";
 
 interface Props {
   hunk: DiffHunkType;
 }
 
-function groupLines(lines: DiffLine[]): LineGroup[] {
+function groupLines(lines: DiffType[]): LineGroup[] {
   const groups: LineGroup[] = [];
   let current: LineGroup | null = null;
 

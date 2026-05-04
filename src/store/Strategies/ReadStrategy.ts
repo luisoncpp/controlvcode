@@ -14,7 +14,7 @@ function formatWithLineNumbers(content: string, startLine: number = 1): string {
   return lines
     .map((line, i) => {
       const num = (startLine + i).toString().padStart(5, ' ');
-      return `${num}  ${line}`;
+      return `${num}|${line}`;
     })
     .join('\n');
 }

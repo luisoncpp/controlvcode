@@ -1,5 +1,5 @@
 import { signal, computed } from "@preact/signals";
-import { ActionNode, ExecutionResult } from "../types";
+import { ActionNode } from "../types";
 import { LLMParser } from "./LLMParser";
 import { ActionStrategy } from "./Strategies/types";
 import { defaultStrategies } from "./Strategies";

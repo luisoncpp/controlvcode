@@ -45,10 +45,10 @@ export function App() {
     const pendingOrRunning = store.nodes.value.filter(
       n => n.status === "pending" || n.status === "running"
     ).length;
-    if (pendingOrRunning === 0 && changeTracker.snapshotHash.value) {
-      changeTracker.computeDiff();
-    }
-  }, [store.nodes.value, changeTracker.snapshotHash.value]);
+      if (pendingOrRunning === 0) {
+        changeTracker.requestDiffWhenReady();
+      }
+    }, [store.nodes.value]);
 
   return (
     <StoreContext.Provider value={store}>
