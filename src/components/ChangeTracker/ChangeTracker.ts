@@ -17,10 +17,7 @@ export class ChangeTracker {
     this.diffOutput.value = "";
   }
 
-  async onInstructionExecute() {
-    if (!this.dirty || !this.gitAvailable) return;
-    this.dirty = false;
-
+  private async tryGrabGitSnapshot() : Promise<void> {
     try {
       const hash = await invoke<string>("snapshot_create");
       // Aceptamos incluso hash vacío: significa "no hay cambios que guardar".
@@ -30,13 +27,16 @@ export class ChangeTracker {
       this.gitAvailable = false;
       this.error.value = "No se detectó un repositorio Git. El diff estará deshabilitado.";
     }
+  }
 
-    // Si se pidió el diff mientras se creaba el snapshot, computarlo ahora
-    if (this.pendingDiffRequest) {
-      this.pendingDiffRequest = false;
-      if (this.snapshotHash.value !== null) {
-        this.computeDiff();
-      }
+  async onInstructionExecute() {
+    if (!this.dirty || !this.gitAvailable) return;
+    this.dirty = false;
+
+    await this.tryGrabGitSnapshot();
+
+    if (this.pendingDiffRequest && this.snapshotHash.value !== null) {
+      this.computeDiff();
     }
   }
 
