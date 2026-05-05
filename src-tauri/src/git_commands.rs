@@ -1,6 +1,6 @@
-use std::process::Command;
 use serde::Serialize;
 
+use crate::process_utils::new_command;
 use crate::project_root;
 
 #[derive(Serialize)]
@@ -13,7 +13,7 @@ pub struct ExecutionResult {
 
 #[tauri::command]
 pub fn snapshot_create() -> Result<String, String> {
-    let output = Command::new("git")
+    let output = new_command("git")
         .args(["stash", "create"])
         .current_dir(project_root())
         .output()
@@ -30,7 +30,7 @@ pub fn snapshot_create() -> Result<String, String> {
 #[tauri::command]
 pub fn snapshot_diff(hash: String) -> Result<ExecutionResult, String> {
     let target = if hash.is_empty() { "HEAD".to_string() } else { hash };
-    let output = Command::new("git")
+    let output = new_command("git")
         .args(["diff", &target])
         .current_dir(project_root())
         .output()
@@ -49,7 +49,7 @@ pub fn snapshot_restore(hash: String) -> Result<ExecutionResult, String> {
     if hash.is_empty() {
         return Err("No se puede revertir porque el snapshot está vacío (no había cambios)".into());
     }
-    let output = Command::new("git")
+    let output = new_command("git")
         .args(["restore", "--source", &hash, "--", "."])
         .current_dir(project_root())
         .output()

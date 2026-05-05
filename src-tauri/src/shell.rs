@@ -1,7 +1,7 @@
 
-use std::process::Command;
 use serde::Serialize;
 
+use crate::process_utils::new_command;
 use crate::project::project_root;
 
 #[derive(Serialize)]
@@ -14,7 +14,7 @@ pub struct ExecutionResult {
 
 #[tauri::command]
 pub fn execute_bash_command(command: &str) -> Result<ExecutionResult, String> {
-    let output = Command::new("cmd")
+    let output = new_command("cmd")
         .arg("/C")
         .arg(command)
         .current_dir(project_root())

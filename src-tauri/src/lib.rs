@@ -1,6 +1,7 @@
 
 pub mod git_commands;
 pub mod grep_in_files;
+pub mod process_utils;
 pub mod project;
 pub mod file_ops;
 pub mod replace;
