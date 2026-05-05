@@ -54,3 +54,12 @@ fn handles_special_chars() {
         assert_eq!(fs::read_to_string(project_root().join("test.html")).unwrap(), "<div>nuevo & mejor</div>\n<div>nuevo & mejor</div>");
     });
 }
+
+#[test]
+fn handles_regression() {
+    with_temp_project(|| {
+        fs::write(project_root().join("test.html"), "        B\n        A").unwrap();
+        replace_in_file("test.html".into(), "        B\n        A".into(), "        X\n        A".into(), true).unwrap();
+        assert_eq!(fs::read_to_string(project_root().join("test.html")).unwrap(), "        X\n        A");
+    });
+}

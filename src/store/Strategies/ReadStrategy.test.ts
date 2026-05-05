@@ -39,8 +39,8 @@ describe("ReadStrategy", () => {
       startLine: null,
       endLine: null,
     });
-    expect(result.stdout).toContain("    1  linea1");
-    expect(result.stdout).toContain("    2  linea2");
+    expect(result.stdout).toContain("    1|linea1");
+    expect(result.stdout).toContain("    2|linea2");
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe('');
   });
@@ -54,8 +54,8 @@ describe("ReadStrategy", () => {
       startLine: 10,
       endLine: 11,
     });
-    expect(result.stdout).toContain("   10  linea10");
-    expect(result.stdout).toContain("   11  linea11");
+    expect(result.stdout).toContain("   10|linea10");
+    expect(result.stdout).toContain("   11|linea11");
   });
 
   it("resuelve line como start y end iguales si no se pasa count", async () => {
@@ -67,7 +67,7 @@ describe("ReadStrategy", () => {
       startLine: 42,
       endLine: 42,
     });
-    expect(result.stdout).toBe("   42  linea42");
+    expect(result.stdout).toBe("   42|linea42");
   });
 
   it("resuelve line + count como start y end calculado", async () => {
@@ -79,9 +79,9 @@ describe("ReadStrategy", () => {
       startLine: 5,
       endLine: 7,
     });
-    expect(result.stdout).toContain("    5  l5");
-    expect(result.stdout).toContain("    6  l6");
-    expect(result.stdout).toContain("    7  l7");
+    expect(result.stdout).toContain("    5|l5");
+    expect(result.stdout).toContain("    6|l6");
+    expect(result.stdout).toContain("    7|l7");
   });
 
   it("devuelve string vacio si el backend devuelve contenido vacio", async () => {
@@ -101,8 +101,8 @@ describe("ReadStrategy", () => {
     mockedInvoke.mockResolvedValueOnce("x\ny");
     const result = await strategy.execute(makeNode({ start: '100' }));
     const expected = [
-      "  100  x",
-      "  101  y",
+      "  100|x",
+      "  101|y",
     ].join("\n");
     expect(result.stdout).toBe(expected);
   });

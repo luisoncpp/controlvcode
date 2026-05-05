@@ -160,7 +160,15 @@ fn replace_in_file(path: String, old_str: String, new_str: String, all: bool) ->
     let original_content = fs::read_to_string(&target_path)
       .map_err(|io_error| format!("Error leyendo {}: {}", path, io_error))?;
 
-    if!original_content.contains(&search_text) {
+    // Detect whether the file uses CRLF (Windows) line endings
+    let has_crlf = original_content.contains("\r\n");
+
+    // Normalize everything to LF for matching and replacement
+    let normalized_content = original_content.replace("\r\n", "\n");
+    let normalized_search = search_text.replace("\r\n", "\n");
+    let normalized_replacement = replacement_text.replace("\r\n", "\n");
+
+    if!normalized_content.contains(&normalized_search) {
         return Err(format!(
             "No se encontró el texto a reemplazar en \"{}\": {}",
             path, search_text
@@ -168,18 +176,25 @@ fn replace_in_file(path: String, old_str: String, new_str: String, all: bool) ->
     }
 
     let total_replacements = if replace_all_occurrences {
-        original_content.matches(&search_text).count()
+        normalized_content.matches(&normalized_search).count()
     } else {
         1
     };
 
     let updated_content = if replace_all_occurrences {
-        original_content.replace(&search_text, &replacement_text)
+        normalized_content.replace(&normalized_search, &normalized_replacement)
     } else {
-        original_content.replacen(&search_text, &replacement_text, 1)
+        normalized_content.replacen(&normalized_search, &normalized_replacement, 1)
     };
 
-    fs::write(&target_path, &updated_content)
+    // Restore the original line ending style
+    let final_content = if has_crlf {
+        updated_content.replace("\n", "\r\n")
+    } else {
+        updated_content
+    };
+
+    fs::write(&target_path, &final_content)
       .map_err(|io_error| format!("Error escribiendo {}: {}", path, io_error))?;
 
     Ok(ReplaceResult { replaced: total_replacements })
