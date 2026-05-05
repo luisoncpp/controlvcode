@@ -35,8 +35,11 @@ export class ChangeTracker {
 
     await this.tryGrabGitSnapshot();
 
-    if (this.pendingDiffRequest && this.snapshotHash.value !== null) {
-      this.computeDiff();
+    if (this.pendingDiffRequest) {
+      this.pendingDiffRequest = false;
+      if (this.snapshotHash.value !== null) {
+        this.computeDiff();
+      }
     }
   }
 
