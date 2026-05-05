@@ -21,21 +21,6 @@ export class ChangeTracker {
     if (!this.dirty || !this.gitAvailable) return;
     this.dirty = false;
 
-    try {
-      const hash = await invoke<string>("snapshot_create");
-      this.snapshotHash.value = hash && hash.length > 0 ? hash : null;
-    } catch {
-      this.gitAvailable = false;
-      this.error.value = "No se detectó un repositorio Git. El diff estará deshabilitado.";
-    }
-
-    // Si se pidió el diff mientras se creaba el snapshot, computarlo ahora
-    if (this.pendingDiffRequest) {
-      this.pendingDiffRequest = false;
-      if (this.snapshotHash.value) {
-        this.computeDiff();
-      }
-    }
   }
 
   /**
@@ -43,7 +28,7 @@ export class ChangeTracker {
    * Si no (aún se está creando), encola la petición para cuando termine.
    */
   requestDiffWhenReady() {
-    if (this.snapshotHash.value) {
+    if (this.snapshotHash.value !== null) {
       this.computeDiff();
     } else if (this.gitAvailable) {
       this.pendingDiffRequest = true;
@@ -52,7 +37,7 @@ export class ChangeTracker {
 
   async computeDiff() {
     const hash = this.snapshotHash.value;
-    if (!hash) {
+    if (hash === null) {
       this.diffOutput.value = "No hay snapshot para comparar.";
       return;
     }
@@ -66,8 +51,12 @@ export class ChangeTracker {
 
   async revert(cleanUntracked: boolean) {
     const hash = this.snapshotHash.value;
-    if (!hash) {
+    if (hash === null) {
       this.error.value = "No hay snapshot que revertir.";
+      return;
+    }
+    if (hash === '') {
+      this.error.value = "No hay snapshot que revertir (no se detectaron cambios).";
       return;
     }
     this.isRestoring.value = true;
