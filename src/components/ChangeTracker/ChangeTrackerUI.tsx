@@ -15,7 +15,7 @@ export function ChangeTrackerUI({ tracker }: { tracker: ChangeTracker }) {
             Actualizar Diff
           </button>
           <button
-            disabled={!tracker.snapshotHash.value || tracker.isRestoring.value}
+            disabled={tracker.snapshotHash.value === null || tracker.isRestoring.value}
             onClick={() => {
               if (confirm("¿Revertir TODOS los cambios en archivos preexistentes?")) {
                 tracker.revert(true);
