@@ -46,9 +46,6 @@ pub fn snapshot_diff(hash: String) -> Result<ExecutionResult, String> {
 #[tauri::command]
 pub fn snapshot_restore(hash: String) -> Result<ExecutionResult, String> {
     // Solo restauramos archivos rastreados. Sin git clean para no borrar trabajo previo.
-    if hash.is_empty() {
-        return Err("No se puede revertir porque el snapshot está vacío (no había cambios)".into());
-    }
     let output = new_command("git")
         .args(["restore", "--source", &hash, "--", "."])
         .current_dir(project_root())
