@@ -14,10 +14,9 @@ pub struct ExecutionResult {
 
 #[tauri::command]
 pub fn execute_bash_command(command: &str) -> Result<ExecutionResult, String> {
-    let full_command = format!("chcp 65001 >nul & {}", command);
     let output = Command::new("cmd")
         .arg("/C")
-        .arg(&full_command)
+        .arg(command)
         .current_dir(project_root())
         .output()
         .map_err(|e| e.to_string())?;
