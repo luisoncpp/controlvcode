@@ -1,4 +1,5 @@
 
+import type { ActionType } from '../../types';
 import type { RawTag, ExtractedNode } from './types';
 import { scanTags } from './Scanner';
 import { unescapeXml } from './unescapeXml';
@@ -33,43 +34,36 @@ function extractField(source: 'content' | string, tag: RawTag, trim = false): st
   return '';
 }
 
-export function extractNodes(rawText: string): ExtractedNode[] {
-  const rawTags = scanTags(rawText);
-  const nodes: ExtractedNode[] = [];
-
-  for (const tag of rawTags) {
-    const schema: TagSchema | undefined = TAG_SCHEMAS[tag.name];
-    if (!schema) continue;
-
-    const node: any = { type: tag.name };
-
-    if (schema.payload !== undefined) {
-      node.payload = extractField(schema.payload, tag, schema.trimPayload);
-    }
-
-    if (schema.content !== undefined) {
-      node.content = extractField(schema.content, tag);
-    }
-
-    if (schema.newContent !== undefined) {
-      node.newContent = extractField(schema.newContent, tag);
-    }
-
-    if (schema.options) {
-      const opts: Record<string, string> = {};
-      for (const key of schema.options) {
-        const val = tag.attributes[key];
-        if (val) {
-          opts[key] = val;
-        }
-      }
-      if (Object.keys(opts).length > 0) {
-        node.options = opts;
-      }
-    }
-
-    nodes.push(node as ExtractedNode);
+function extractOptions(tag: RawTag, keys: string[]): Record<string, string> | undefined {
+  const opts: Record<string, string> = {};
+  for (const key of keys) {
+    const val = tag.attributes[key];
+    if (val) opts[key] = val;
   }
+  return Object.keys(opts).length > 0 ? opts : undefined;
+}
 
-  return nodes;
+function buildNode(tag: RawTag, schema: TagSchema): ExtractedNode {
+  const node: ExtractedNode = {
+    type: tag.name as ActionType,
+    payload: schema.payload !== undefined
+      ? extractField(schema.payload, tag, schema.trimPayload)
+      : '',
+  };
+  if (schema.content !== undefined) {
+    node.content = extractField(schema.content, tag);
+  }
+  if (schema.newContent !== undefined) {
+    node.newContent = extractField(schema.newContent, tag);
+  }
+  if (schema.options) {
+    node.options = extractOptions(tag, schema.options);
+  }
+  return node;
+}
+
+export function extractNodes(rawText: string): ExtractedNode[] {
+  return scanTags(rawText)
+    .filter(tag => TAG_SCHEMAS[tag.name] !== undefined)
+    .map(tag => buildNode(tag, TAG_SCHEMAS[tag.name]));
 }

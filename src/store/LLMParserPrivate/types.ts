@@ -14,8 +14,10 @@ export interface RawTag {
   endIndex: number;
 }
 
+import type { ActionType } from '../../types';
+
 export interface ExtractedNode {
-  type: 'cmd' | 'file' | 'tree' | 'read' | 'replace';
+  type: ActionType;
   payload: string;
   content?: string;
   newContent?: string;            // para replace
