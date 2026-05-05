@@ -75,10 +75,6 @@ export class ChangeTracker {
       this.error.value = "No hay snapshot que revertir.";
       return;
     }
-    if (hash === '') {
-      this.error.value = "No hay snapshot que revertir (no se detectaron cambios).";
-      return;
-    }
     this.isRestoring.value = true;
     try {
       const result = await invoke<ExecutionResult>("snapshot_restore", { hash, cleanUntracked });
