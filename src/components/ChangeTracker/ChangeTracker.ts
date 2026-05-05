@@ -21,6 +21,23 @@ export class ChangeTracker {
     if (!this.dirty || !this.gitAvailable) return;
     this.dirty = false;
 
+    try {
+      const hash = await invoke<string>("snapshot_create");
+      // Aceptamos incluso hash vacío: significa "no hay cambios que guardar".
+      // El diff se calculará contra HEAD y mostrará "Sin diferencias" si no hay cambios.
+      this.snapshotHash.value = hash ?? '';
+    } catch {
+      this.gitAvailable = false;
+      this.error.value = "No se detectó un repositorio Git. El diff estará deshabilitado.";
+    }
+
+    // Si se pidió el diff mientras se creaba el snapshot, computarlo ahora
+    if (this.pendingDiffRequest) {
+      this.pendingDiffRequest = false;
+      if (this.snapshotHash.value !== null) {
+        this.computeDiff();
+      }
+    }
   }
 
   /**
