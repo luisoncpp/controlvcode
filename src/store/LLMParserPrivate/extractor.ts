@@ -43,7 +43,7 @@ function extractOptions(tag: RawTag, keys: string[]): Record<string, string> | u
   return Object.keys(opts).length > 0 ? opts : undefined;
 }
 
-function buildNode(tag: RawTag, schema: TagSchema): ExtractedNode {
+function buildNode(tag: RawTag, schema: TagSchema): ExtractedNode | null {
   const node: ExtractedNode = {
     type: tag.name as ActionType,
     payload: schema.payload !== undefined
@@ -59,11 +59,30 @@ function buildNode(tag: RawTag, schema: TagSchema): ExtractedNode {
   if (schema.options) {
     node.options = extractOptions(tag, schema.options);
   }
+
+  // ── Validación estructural para <replace> ──
+  // Si se usa formato anidado (tiene hijos), ambos <old> y <new> deben existir.
+  // Si falta alguno (ej. porque falló el parseo de CDATA malformado),
+  // descartar el nodo entero para evitar un reemplazo silencioso por "".
+  if (tag.name === 'replace' && tag.children && tag.children.length > 0) {
+    const hasOldChild = tag.children.some(c => c.name === 'old');
+    const hasNewChild = tag.children.some(c => c.name === 'new');
+    if (!hasOldChild || !hasNewChild) {
+      return null;
+    }
+  }
+
+  // Rechazar replace con old vacío (coincidiría con todo y causaría daño)
+  if (tag.name === 'replace' && node.content === '') {
+    return null;
+  }
+
   return node;
 }
 
 export function extractNodes(rawText: string): ExtractedNode[] {
   return scanTags(rawText)
     .filter(tag => TAG_SCHEMAS[tag.name] !== undefined)
-    .map(tag => buildNode(tag, TAG_SCHEMAS[tag.name]));
+    .map(tag => buildNode(tag, TAG_SCHEMAS[tag.name]))
+    .filter((node): node is ExtractedNode => node !== null);
 }

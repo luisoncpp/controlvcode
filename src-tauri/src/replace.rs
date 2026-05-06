@@ -24,6 +24,10 @@ pub fn replace_in_file(
     new_str: String,
     all: bool,
 ) -> Result<ReplaceResult, String> {
+    if old_str.is_empty() {
+        return Err("El texto a reemplazar (old_str) no puede estar vacío. Operación cancelada por seguridad.".to_string());
+    }
+
     let target_path = project_root().join(&path);
     if !target_path.exists() {
         return Err(format!("El archivo \"{}\" no existe.", path));

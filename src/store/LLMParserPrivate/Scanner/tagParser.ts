@@ -5,6 +5,12 @@ import { advanceIndexPastProtectedRanges, parseTagNameAt } from './textUtils';
 import { parseAttributesAt } from './attributeParser';
 import { extractContent } from './contentExtractor';
 
+/** Resultado de parsear un tag — tag=null significa malformado (saltar a nextIndex) */
+interface TagParseResult {
+  tag: RawTag | null;
+  nextIndex: number;
+}
+
 // Movemos scanTags aquí para permitir la llamada recursiva desde parseOpenTagWithContent
 // sin generar dependencias circulares.
 export function scanTags(rawText: string): RawTag[] {
@@ -21,16 +27,21 @@ export function scanTags(rawText: string): RawTag[] {
       continue;
     }
 
-    const parsed = tryParseTagAt({
+    const result = tryParseTagAt({
       text: rawText,
       openingBracketIndex: index,
       protectedRanges,
     });
-    if (parsed) {
-      tags.push(parsed.tag);
-      index = parsed.nextIndex;
+    if (result === null) {
+      // No es un tag válido (ej. "< " o "<3") — avanzar 1 carácter
+      index++;
+    } else if (result.tag === null) {
+      // Tag malformado — saltar past él usando el nextIndex calculado
+      index = result.nextIndex;
     } else {
-      index++; // avanzar para no quedar atrapado
+      // Tag válido
+      tags.push(result.tag);
+      index = result.nextIndex;
     }
   }
 
@@ -52,7 +63,7 @@ function parseSelfClosingTag({
   tagName,
   attrs,
   slashIndex,
-}: ParseSelfClosingTagParams): { tag: RawTag; nextIndex: number } | null {
+}: ParseSelfClosingTagParams): TagParseResult | null {
   if (slashIndex >= text.length || text[slashIndex] !== '/') return null;
   let i = slashIndex + 1;
   if (i < text.length && text[i] === '>') {
@@ -90,14 +101,18 @@ function parseOpenTagWithContent({
   attrs,
   contentStartIndex,
   protectedRanges,
-}: ParseOpenTagWithContentParams): { tag: RawTag; nextIndex: number } | null {
+}: ParseOpenTagWithContentParams): TagParseResult {
   const { content, endIndex, isCData } = extractContent({
     text,
     start: contentStartIndex,
     tagName,
     protectedRanges,
   });
-  if (content === null) return null;
+  if (content === null) {
+    // Tag malformado — endIndex ya apunta past el close tag (gracias al fix
+    // en contentExtractor), así que podemos saltar todo el bloque
+    return { tag: null, nextIndex: endIndex };
+  }
 
   // Llamada recursiva para obtener los hijos a partir del contenido extraído
   // IMPORTANTE: Si el contenido es CDATA, es texto literal y NO se debe parsear
@@ -129,7 +144,7 @@ export function tryParseTagAt({
   text,
   openingBracketIndex,
   protectedRanges,
-}: TryParseTagAtParams): { tag: RawTag; nextIndex: number } | null {
+}: TryParseTagAtParams): TagParseResult | null {
   const tagStart = openingBracketIndex;
   let currentIndex = openingBracketIndex + 1; // después del '<'
 
