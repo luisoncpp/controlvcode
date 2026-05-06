@@ -7,7 +7,7 @@ describe("scanTags", () => {
     const tags = scanTags("<cmd>echo hola</cmd>");
     expect(tags).toHaveLength(1);
     expect(tags[0]).toMatchObject({ name: "cmd", content: "echo hola", isSelfClosing: false });
-    expect(tags[0].children).toEqual([]); // Los tags simples no tienen hijos
+    expect(tags[0].children).toEqual([]);
   });
 
   it("extrae un tag self-closing", () => {
@@ -32,7 +32,6 @@ describe("scanTags", () => {
     expect(tags[0].attributes["path"]).toBe("a.txt");
     expect(tags[0].content).toBe('<file path="b.txt">inner</file>outer');
     
-    // Verificar hijos parseados
     expect(tags[0].children).toHaveLength(1);
     expect(tags[0].children[0]).toMatchObject({
       name: "file",
@@ -57,10 +56,12 @@ describe("scanTags", () => {
     expect(tags[1].content).toBe("b");
   });
 
-  it("no extrae tags malformados (sin cierre)", () => {
+  it("genera parse_error para tags malformados (sin cierre)", () => {
     const text = "<cmd>sin cerrar";
     const tags = scanTags(text);
-    expect(tags).toHaveLength(0);
+    const errTag = tags.find(t => t.name === "parse_error");
+    expect(errTag).toBeDefined();
+    expect(errTag?.attributes["tag_name"]).toBe("cmd");
   });
 });
 
@@ -83,7 +84,7 @@ describe("scanTags con anidación (AST Recursivo)", () => {
 
     expect(oldTag).toBeDefined();
     expect(oldTag?.content).toBe("texto viejo");
-    expect(oldTag?.children).toEqual([]); // Hoja
+    expect(oldTag?.children).toEqual([]);
 
     expect(newTag).toBeDefined();
     expect(newTag?.content).toBe("texto nuevo");
@@ -171,16 +172,20 @@ line1
     expect(tags[0].isCData).toBe(true);
   });
 
-  it("ignora CDATA si está malformado (sin cierre )", () => {
+  it("genera parse_error si CDATA no tiene cierre", () => {
     const text = '<cmd><![CDATA[sin cerrar</cmd>';
     const tags = scanTags(text);
-    expect(tags).toHaveLength(0);
+    expect(tags).toHaveLength(1);
+    expect(tags[0].name).toBe("parse_error");
+    expect(tags[0].attributes["tag_name"]).toBe("cmd");
   });
 
-  it("si falta el tag de cierre XML después del CDATA, no extrae", () => {
+  it("genera parse_error si falta tag de cierre XML tras CDATA", () => {
     const text = '<cmd><![CDATA[contenido]]>';
     const tags = scanTags(text);
-    expect(tags).toHaveLength(0);
+    expect(tags).toHaveLength(1);
+    expect(tags[0].name).toBe("parse_error");
+    expect(tags[0].attributes["tag_name"]).toBe("cmd");
   });
 });
 
@@ -188,7 +193,6 @@ describe("extractNodes con CDATA", () => {
   it("NO aplica unescapeXml cuando el contenido es CDATA", () => {
     const nodes = extractNodes('<cmd><![CDATA[echo <div>Hola</div>]]></cmd>');
     expect(nodes).toHaveLength(1);
-    // El schema de 'cmd' tiene trimPayload: true
     expect(nodes[0].payload).toBe('echo <div>Hola</div>');
   });
 

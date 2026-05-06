@@ -7,6 +7,7 @@ import { ReadStrategy } from './ReadStrategy';
 import { ReplaceStrategy } from './ReplaceStrategy';
 import { GrepStrategy } from './GrepStrategy';
 import { PatchStrategy } from './PatchStrategy';
+import { ParseErrorStrategy } from './ParseErrorStrategy';
 
 /**
  * Registro de estrategias. 
@@ -20,7 +21,8 @@ export const defaultStrategies: Record<ActionType, ActionStrategy> = {
   read: new ReadStrategy(),
   replace: new ReplaceStrategy(),
   grep: new GrepStrategy(),
-  patch: new PatchStrategy()
+  patch: new PatchStrategy(),
+  parse_error: new ParseErrorStrategy(),
 };
 
 export type { ActionStrategy } from './types';

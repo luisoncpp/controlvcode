@@ -5,7 +5,7 @@ import { advanceIndexPastProtectedRanges, parseTagNameAt } from './textUtils';
 import { parseAttributesAt } from './attributeParser';
 import { extractContent } from './contentExtractor';
 
-/** Resultado de parsear un tag — tag=null significa malformado (saltar a nextIndex) */
+/** Resultado de parsear un tag — tag=null significa malformado sin recovery posible */
 interface TagParseResult {
   tag: RawTag | null;
   nextIndex: number;
@@ -36,10 +36,10 @@ export function scanTags(rawText: string): RawTag[] {
       // No es un tag válido (ej. "< " o "<3") — avanzar 1 carácter
       index++;
     } else if (result.tag === null) {
-      // Tag malformado — saltar past él usando el nextIndex calculado
+      // Tag malformado sin recovery posible — saltar usando nextIndex
       index = result.nextIndex;
     } else {
-      // Tag válido
+      // Tag válido (o parse_error sintético)
       tags.push(result.tag);
       index = result.nextIndex;
     }
@@ -109,9 +109,21 @@ function parseOpenTagWithContent({
     protectedRanges,
   });
   if (content === null) {
-    // Tag malformado — endIndex ya apunta past el close tag (gracias al fix
-    // en contentExtractor), así que podemos saltar todo el bloque
-    return { tag: null, nextIndex: endIndex };
+    // Tag malformado — generar un RawTag sintético de error
+    // para que aparezca como tarjeta visible en la cola de acciones
+    const rawText = text.substring(tagStart, endIndex);
+    return {
+      tag: {
+        name: 'parse_error',
+        attributes: { tag_name: tagName.toLowerCase() },
+        content: rawText,
+        children: [],
+        isSelfClosing: false,
+        startIndex: tagStart,
+        endIndex,
+      },
+      nextIndex: endIndex,
+    };
   }
 
   // Llamada recursiva para obtener los hijos a partir del contenido extraído

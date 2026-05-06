@@ -1,8 +1,23 @@
+
 import type { Range } from '../types';
 import { advanceIndexPastProtectedRanges, skipWhitespace } from './textUtils';
 
 const CDATA_START = '<![CDATA[';
 const CDATA_END = ']]>';
+
+/**
+ * Busca </tagName> a partir de fromIndex y retorna el indice despues del cierre.
+ * Si no existe, retorna text.length para evitar que el escaner re-procese
+ * contenido de un tag que ya se sabe malformado.
+ */
+function findCloseTagEnd(text: string, fromIndex: number, tagName: string): number {
+  const closeTag = `</${tagName}>`;
+  const closeIndex = text.indexOf(closeTag, fromIndex);
+  if (closeIndex !== -1) {
+    return closeIndex + closeTag.length;
+  }
+  return text.length;
+}
 
 export function tryExtractCDataContent(
   text: string,
@@ -94,13 +109,20 @@ export function extractContent({
 
   if (text.substring(contentStart, contentStart + CDATA_START.length) === CDATA_START) {
     const result = tryExtractCDataContent(text, /*start=*/contentStart, `</${tagName}>`);
-    return result
-      ? { content: result.content, endIndex: result.endIndex, isCData: true }
-      : { content: null, endIndex: start };
+    if (result) {
+      return { content: result.content, endIndex: result.endIndex, isCData: true };
+    }
+    // CDATA malformado - saltar past el close tag del padre para evitar
+    // que el escaner re-procese el contenido como tags top-level
+    const fallbackEnd = findCloseTagEnd(text, contentStart, tagName);
+    return { content: null, endIndex: fallbackEnd };
   }
 
   const result = tryExtractStandardContent({ text, start: contentStart, tagName, protectedRanges });
-  return result
-    ? { content: result.content, endIndex: result.endIndex, isCData: false }
-    : { content: null, endIndex: start };
+  if (result) {
+    return { content: result.content, endIndex: result.endIndex, isCData: false };
+  }
+  // Contenido estandar sin cierre - saltar past el close tag
+  const fallbackEnd = findCloseTagEnd(text, contentStart, tagName);
+  return { content: null, endIndex: fallbackEnd };
 }

@@ -1,5 +1,5 @@
 export type ActionStatus = 'pending' | 'running' | 'success' | 'error' | 'skipped';
-export type ActionType = 'cmd' | 'file' | 'tree' | 'read' | 'replace' | 'grep' | 'patch';
+export type ActionType = 'cmd' | 'file' | 'tree' | 'read' | 'replace' | 'grep' | 'patch' | 'parse_error';
 
 export interface ExecutionResult {
   stdout: string;

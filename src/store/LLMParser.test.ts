@@ -199,9 +199,11 @@ describe("extractNodes", () => {
     expect(nodes).toHaveLength(0);
   });
 
-  it("no extrae tags parciales o malformados", () => {
+  it("genera parse_error para tags parciales o malformados", () => {
     const nodes = extractNodes("<cmd>sin cerrar");
-    expect(nodes).toHaveLength(0);
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].type).toBe("parse_error");
+    expect(nodes[0].payload).toContain("malformado");
   });
 
   it("no extrae tags parciales de cierre", () => {

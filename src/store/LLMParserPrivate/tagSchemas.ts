@@ -46,4 +46,7 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     payload: 'path',
     content: 'content',
   },
+  parse_error: {
+    payload: 'content', // manejado especialmente en buildNode
+  },
 };

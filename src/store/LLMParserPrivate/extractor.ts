@@ -44,6 +44,17 @@ function extractOptions(tag: RawTag, keys: string[]): Record<string, string> | u
 }
 
 function buildNode(tag: RawTag, schema: TagSchema): ExtractedNode | null {
+  // ── Manejo especial de tags malformados ──
+  if (tag.name === 'parse_error') {
+    const tagName = tag.attributes['tag_name'] || 'desconocido';
+    const rawSnippet = (tag.content ?? '').substring(0, 300);
+    return {
+      type: 'parse_error' as ActionType,
+      payload: `Tag <${tagName}> malformado: no se pudo extraer el contenido. Verifica que las etiquetas y bloques CDATA estén correctamente cerrados.`,
+      content: rawSnippet,
+    };
+  }
+
   const node: ExtractedNode = {
     type: tag.name as ActionType,
     payload: schema.payload !== undefined
