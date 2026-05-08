@@ -11,6 +11,7 @@ export class PatchStrategy implements ActionStrategy {
       stdout: `Patch applied to ${node.payload}: ${result.hunks_applied} hunk(s), +${result.lines_added} -${result.lines_removed} line(s).`,
       stderr: '',
       exitCode: 0,
+      meta: { hunks: result.hunks_applied }
     };
   }
 }

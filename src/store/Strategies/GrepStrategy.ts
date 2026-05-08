@@ -11,7 +11,7 @@ async function executeGrep(
   path: string,
   pattern: string,
   options: GrepOptions = {}
-): Promise<string> {
+): Promise<{ output: string, matches: number }> {
   const matches: Array<{ file: string; line: number; content: string }> = await invoke('grep_in_files', {
     path,
     pattern,
@@ -20,14 +20,14 @@ async function executeGrep(
   });
 
   if (matches.length === 0) {
-    return `No matches found for pattern "${pattern}" in ${path}.`;
+    return { output: `No matches found for pattern "${pattern}" in ${path}.`, matches: 0 };
   }
 
   let output = '';
   for (const match of matches) {
     output += `${match.file}:${match.line}: ${match.content}\n`;
   }
-  return output.trimEnd();
+  return { output: output.trimEnd(), matches: matches.length };
 }
 
 export class GrepStrategy implements ActionStrategy {
@@ -36,11 +36,11 @@ export class GrepStrategy implements ActionStrategy {
     if (node.options?.ignore_case === 'true') opts.ignoreCase = true;
     if (node.options?.glob) opts.glob = node.options.glob;
 
-    const output = await executeGrep(
+    const { output, matches } = await executeGrep(
       node.payload,
       node.content ?? '',
       opts
     );
-    return { stdout: output, stderr: '', exitCode: 0 };
+    return { stdout: output, stderr: '', exitCode: 0, meta: { matches } };
   }
 }

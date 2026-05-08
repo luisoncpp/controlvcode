@@ -57,6 +57,13 @@ export class ReadStrategy implements ActionStrategy {
       if (node.options.count) opts.count = parseInt(node.options.count, 10);
     }
     const output = await executeRead(node.payload, opts);
-    return { stdout: output, stderr: '', exitCode: 0 };
+    let lines = 'all';
+    if (opts.line !== undefined) {
+      const count = opts.count ?? 1;
+      lines = `${opts.line}-${opts.line + count - 1}`;
+    } else if (opts.start !== undefined || opts.end !== undefined) {
+      lines = `${opts.start ?? 1}-${opts.end ?? 'end'}`;
+    }
+    return { stdout: output, stderr: '', exitCode: 0, meta: { lines } };
   }
 }
