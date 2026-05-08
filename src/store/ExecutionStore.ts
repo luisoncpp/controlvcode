@@ -82,14 +82,25 @@ export class ExecutionStore {
 
     let xml = "<execution_results>\n";
     for (const node of executedNodes) {
-      const { payload, result } = node;
+      const { type, payload, result } = node;
       const status = result!.exitCode === 0 ? "success" : "error";
       
       const safePayload = payload.replace(/"/g, '"');
       
-      xml += `  <result command="${safePayload}" status="${status}">\n`;
-      if (result!.stdout) xml += `    <stdout>\n${result!.stdout}\n    </stdout>\n`;
-      if (result!.stderr) xml += `    <stderr>\n${result!.stderr}\n    </stderr>\n`;
+      // Extraer metadatos dinámicos si la estrategia los adjuntó
+      let metaAttrs = "";
+      const meta = (result as any).meta;
+      if (meta) {
+        metaAttrs = " " + Object.entries(meta).map(([k, v]) => `${k}="${v}"`).join(" ");
+      }
+      
+      xml += `  <result action="${type}" target="${safePayload}"${metaAttrs} status="${status}">\n`;
+      
+      // Omitir stdout en acciones de escritura de archivo exitosas para ahorrar tokens
+      if (!(type === 'file' && status === 'success')) {
+        if (result!.stdout) xml += `    <stdout><![CDATA[\n${result!.stdout}\n]]></stdout>\n`;
+      }
+      if (result!.stderr) xml += `    <stderr><![CDATA[\n${result!.stderr}\n]]></stderr>\n`;
       xml += `  </result>\n`;
     }
     xml += "</execution_results>";

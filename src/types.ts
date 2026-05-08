@@ -5,6 +5,7 @@ export interface ExecutionResult {
   stdout: string;
   stderr: string;
   exitCode: number;
+  meta?: Record<string, string | number>;
 }
 
 export interface ActionNode {

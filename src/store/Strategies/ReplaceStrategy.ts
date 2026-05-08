@@ -12,7 +12,7 @@ async function executeReplace(
   oldStr: string,
   newStr: string,
   options: ReplaceOptions = {}
-): Promise<string> {
+): Promise<{ output: string, matches: number }> {
   const occurrence = options.occurrence ?? 'first';
   const result: { replaced: number } = await invoke('replace_in_file', {
     path,
@@ -20,7 +20,10 @@ async function executeReplace(
     newStr,
     all: occurrence === 'all',
   });
-  return `Replaced ${result.replaced} occurrence(s) in ${path}.`;
+  return { 
+    output: `Replaced ${result.replaced} occurrence(s) in ${path}.`,
+    matches: result.replaced
+  };
 }
 
 export class ReplaceStrategy implements ActionStrategy {
@@ -39,12 +42,12 @@ export class ReplaceStrategy implements ActionStrategy {
 
     const ropts: ReplaceOptions = {};
     if (node.options?.occurrence === 'all') ropts.occurrence = 'all';
-    const output = await executeReplace(
+    const { output, matches } = await executeReplace(
       node.payload,
       oldStr,
       newStr,
       ropts
     );
-    return { stdout: output, stderr: '', exitCode: 0 };
+    return { stdout: output, stderr: '', exitCode: 0, meta: { matches } };
   }
 }
