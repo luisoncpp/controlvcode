@@ -153,10 +153,12 @@ Para patrones con caracteres especiales o multilínea, usa el formato anidado co
 
 ## 🗺️ Hoja de Ruta
 
-*   **`<read path="...">`**: Permite al agente leer el contenido de archivos locales para ganar contexto sin necesidad de comandos de terminal.
-*   **Resaltado de sintaxis** en el visor de diff.
-*   **Atajos de teclado** en el dropdown de búsqueda de archivos.
-*   **Persistencia de configuración** (carpeta del proyecto, preferencias).
+* Archivos embebidos en adjuntos
+* Soporte para PowerShell
+* Soporte para Bash(requerirá archivo de configuración)
+* Ver archivos nuevos en el diff.
+* Soporte para configurar permisos (requerirá archivo de configuración)
+* Cambiar el layout actual por algo más cómodo.
 
 ---
 

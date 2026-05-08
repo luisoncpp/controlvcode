@@ -1,9 +1,15 @@
+
+import { useState } from 'preact/hooks';
 import { useStore } from '../context/StoreContext';
 import { ActionCard } from './ActionCard';
+import { ActionDetailsModal } from './ActionDetailsModal';
+import { ActionNode } from '../types';
 
 export function QueueViewer() {
   const store = useStore();
   const nodes = store.nodes.value;
+  
+  const [selectedNode, setSelectedNode] = useState<ActionNode | null>(null);
 
   const activeNodes = nodes
     .map((node, realIndex) => ({ node, realIndex }))
@@ -18,10 +24,21 @@ export function QueueViewer() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {activeNodes.map(({ node, realIndex }) => (
-        <ActionCard key={node.id} index={realIndex} />
-      ))}
-    </div>
+    <>
+      <div className="flex flex-col gap-4">
+        {activeNodes.map(({ node, realIndex }) => (
+          <ActionCard 
+            key={node.id} 
+            index={realIndex} 
+            onShowDetails={() => setSelectedNode(node)}
+          />
+        ))}
+      </div>
+      
+      <ActionDetailsModal 
+        node={selectedNode} 
+        onClose={() => setSelectedNode(null)} 
+      />
+    </>
   );
 }
