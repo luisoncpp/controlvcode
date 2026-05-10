@@ -12,6 +12,25 @@
 
 * Do not make functions longer than 30 lines.
 
+* When hardcoding a callback, make sure to specify what the callback does; when hardcoding a parameter after a callback, simulate named parameters using comments(because the meaning of the paramter is likely getting lost). e.g.
+
+    **BAD**
+    ```
+    setTimeout(() => {
+        ...
+    }, 5000);
+    ```
+
+    **GOOD**
+    ```
+    setTimeout(/*refresh*/ () => {
+        ...
+    }, /*delayInMs=*/5000);
+    ```
+
+    This applies to hooks as well(specially to hooks).
+
+
 # Workflow
 
 * First read all the documentation that may be relevant for the given task.

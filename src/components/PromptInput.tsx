@@ -1,7 +1,12 @@
+
 import { useStore } from '../context/StoreContext';
 import { useRef } from 'preact/hooks';
 
-export function PromptInput() {
+interface PromptInputProps {
+  isCompact?: boolean;
+}
+
+export function PromptInput({ isCompact = false }: PromptInputProps) {
   const store = useStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -10,16 +15,33 @@ export function PromptInput() {
       const text = await navigator.clipboard.readText();
       if (textareaRef.current) {
         textareaRef.current.value = text;
-        store.processInput(text);
       }
+      store.processInput(text);
     } catch (err) {
       console.error('Error al leer el portapapeles:', err);
       alert('No se pudo acceder al portapapeles. Asegúrate de haber concedido el permiso.');
     }
   };
 
+  if (isCompact) {
+    return (
+      <div className="flex flex-col items-center gap-2 pt-4">
+        <button
+          onClick={handlePasteFromClipboard}
+          title="Pegar contenido del portapapeles"
+          className="flex items-center justify-center w-10 h-10 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full gap-2">
+    <div className="flex flex-col h-full gap-2 p-4">
       <div className="flex justify-end">
         <button
           onClick={handlePasteFromClipboard}
