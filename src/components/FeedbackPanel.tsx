@@ -43,7 +43,7 @@ export function FeedbackPanel() {
           Copiar XML
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-xs text-gray-400 font-mono max-h-64 overflow-y-auto">
+      <pre className="p-4 text-xs text-gray-400 font-mono whitespace-pre-wrap break-words">
         {promptText}
       </pre>
     </div>

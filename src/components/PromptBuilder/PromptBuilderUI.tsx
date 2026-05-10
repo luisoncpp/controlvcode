@@ -63,7 +63,7 @@ export function PromptBuilderUI({ builder }: { builder: PromptBuilder }) {
 
           <div className="relative">
             <textarea
-              className="w-full p-3 bg-gray-900 border border-gray-700 rounded text-gray-200 font-mono text-sm resize-none focus:outline-none focus:border-blue-500 min-h-[180px]"
+              className="w-full p-3 bg-gray-900 border border-gray-700 rounded text-gray-200 font-mono text-sm resize-none focus:outline-none focus:border-blue-500 min-h-[140px]"
               placeholder="Escribe tu mensaje aquí. Usa @ para adjuntar archivos del proyecto..."
               value={builder.message.value}
               onInput={(e) => builder.onMessageChange((e.target as HTMLTextAreaElement).value)}

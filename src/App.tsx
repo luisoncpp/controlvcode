@@ -46,8 +46,8 @@ export function App() {
             </div>
             <div className="flex-1 overflow-y-auto px-6 pb-4">
               <QueueViewer />
-              <FeedbackPanel />
               <ChangeTrackerUI tracker={changeTracker} />
+              <FeedbackPanel />
             </div>
             <PromptBuilderComponent feedbackXml={store.feedbackPrompt.value} />
           </main>
