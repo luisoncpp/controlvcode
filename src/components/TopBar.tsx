@@ -28,23 +28,23 @@ export function TopBar() {
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 shrink-0">
+    <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-[#30363d] shrink-0">
       <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold text-gray-400">Proyecto:</span>
+        <span className="text-sm font-medium text-[#7d8590]">Proyecto:</span>
         <button
           onClick={handleSelectProject}
           title={`Cambiar carpeta del proyecto (actual: ${projectDir})`}
-          className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 hover:bg-gray-600 text-blue-400 rounded border border-gray-600 transition-colors max-w-[240px]"
+          className="flex items-center gap-1.5 px-2.5 py-1 text-sm bg-[#21262d] hover:bg-[#30363d] text-[#2f81f7] rounded-md border border-[#30363d] transition-colors duration-200 max-w-[240px]"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="flex-shrink-0">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
           </svg>
-          <span className="truncate">{shortDir()}</span>
+          <span className="truncate text-[#e6edf3]">{shortDir()}</span>
         </button>
       </div>
       
       <label className="flex items-center gap-2 cursor-pointer select-none">
-        <span className="text-sm text-gray-400">Autocopiar</span>
+        <span className="text-sm text-[#7d8590]">Autocopiar</span>
         <div className="relative">
           <input
             type="checkbox"

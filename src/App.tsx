@@ -32,7 +32,7 @@ export function App() {
 
   return (
     <StoreContext.Provider value={store}>
-      <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden">
+      <div className="flex flex-col h-screen bg-[#0d1117] text-[#e6edf3] overflow-hidden">
         <TopBar />
         
         <div className="flex flex-1 overflow-hidden">

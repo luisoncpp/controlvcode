@@ -1,3 +1,4 @@
+
 import { useStore } from '../context/StoreContext';
 
 export function FeedbackPanel() {
@@ -14,36 +15,36 @@ export function FeedbackPanel() {
       if (btn) {
         const originalText = btn.textContent;
         btn.textContent = '¡Copiado!';
-        btn.className = 'px-3 py-1 rounded text-sm font-bold transition-colors bg-green-600 text-white';
+        btn.className = 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 bg-[#238636] text-white';
         setTimeout(() => {
           btn.textContent = originalText;
-          btn.className = 'px-3 py-1 rounded text-sm font-bold transition-colors bg-gray-600 hover:bg-gray-500 text-gray-200';
+          btn.className = 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] border border-[#30363d]';
         }, 2000);
       }
     }
   };
 
   return (
-    <div className="mt-6 border border-gray-700 rounded bg-gray-800">
-      <div className="flex justify-between items-center p-3 border-b border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-300">
+    <div className="mt-6 bg-[#161b22] border border-[#30363d] rounded-lg">
+      <div className="flex justify-between items-center p-4 border-b border-[#30363d]">
+        <h3 className="text-sm font-medium text-[#e6edf3]">
           Respuesta para el LLM
-          {isAutoCopy && <span className="ml-2 text-xs text-blue-400">(autocopiando)</span>}
+          {isAutoCopy && <span className="ml-2 text-xs text-[#2f81f7]">(autocopiando)</span>}
         </h3>
         <button 
           id="copy-btn"
           onClick={handleCopy}
           disabled={isAutoCopy}
-          className={`px-3 py-1 rounded text-sm font-bold transition-colors ${
+          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
             isAutoCopy 
-              ? 'bg-blue-600 text-white opacity-70 cursor-not-allowed' 
-              : 'bg-gray-600 hover:bg-gray-500 text-gray-200'
+              ? 'bg-[#2f81f7] text-white opacity-60 cursor-not-allowed' 
+              : 'bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] border border-[#30363d]'
           }`}
         >
           Copiar XML
         </button>
       </div>
-      <pre className="p-4 text-xs text-gray-400 font-mono whitespace-pre-wrap break-words">
+      <pre className="p-4 text-xs text-[#7d8590] font-mono whitespace-pre-wrap break-words">
         {promptText}
       </pre>
     </div>

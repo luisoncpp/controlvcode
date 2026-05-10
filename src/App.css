@@ -1,6 +1,42 @@
+
 @import "tailwindcss";
 
-/* Un fondo oscuro por defecto para cuidar la vista */
+:root {
+  --canvas: #0d1117;
+  --elevated: #161b22;
+  --surface: #21262d;
+  --border: #30363d;
+  --text-primary: #e6edf3;
+  --text-secondary: #7d8590;
+  --accent: #2f81f7;
+  --success: #238636;
+  --danger: #da3633;
+}
+
 body {
-  @apply bg-gray-900 text-white;
+  background-color: var(--canvas);
+  color: var(--text-primary);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-down {
+  animation: fadeInDown 0.2s ease-out;
 }

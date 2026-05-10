@@ -17,7 +17,7 @@ export function QueueViewer() {
 
   if (activeNodes.length === 0) {
     return (
-      <div className="flex items-center justify-center h-12 border border-dashed border-gray-700 rounded text-gray-500">
+      <div className="flex items-center justify-center py-8 px-4 bg-[#161b22] border border-[#30363d] rounded-lg text-[#7d8590] text-sm">
         No hay comandos en la cola. Pega texto en el panel izquierdo.
       </div>
     );
