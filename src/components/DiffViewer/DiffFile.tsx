@@ -7,7 +7,7 @@ interface Props {
   defaultExpanded?: boolean;
 }
 
-export function DiffFile({ file, defaultExpanded = true }: Props) {
+export function DiffFile({ file, defaultExpanded = false }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   const statusLabel = file.isNew
@@ -63,7 +63,7 @@ export function DiffFile({ file, defaultExpanded = true }: Props) {
       </button>
 
       {expanded && (
-        <div className="overflow-x-auto">
+        <div>
           {file.hunks.map((hunk, idx) => (
             <DiffHunk key={idx} hunk={hunk} />
           ))}

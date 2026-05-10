@@ -1,6 +1,7 @@
 
 import { ChangeTracker } from "./ChangeTracker";
 import { DiffViewer } from "../DiffViewer";
+import { confirm } from "@tauri-apps/plugin-dialog";
 
 export function ChangeTrackerUI({ tracker }: { tracker: ChangeTracker }) {
   return (
@@ -17,8 +18,12 @@ export function ChangeTrackerUI({ tracker }: { tracker: ChangeTracker }) {
           </button>
           <button
             disabled={tracker.snapshotHash.value === null || tracker.isRestoring.value}
-            onClick={() => {
-              if (confirm("¿Revertir TODOS los cambios en archivos preexistentes?")) {
+            onClick={async () => {
+              const confirmed = await confirm(
+                "¿Revertir TODOS los cambios en archivos preexistentes?",
+                { title: "Revertir cambios", kind: "warning" }
+              );
+              if (confirmed) {
                 tracker.revert(true);
               }
             }}
@@ -29,7 +34,7 @@ export function ChangeTrackerUI({ tracker }: { tracker: ChangeTracker }) {
         </div>
       </div>
 
-      <div className="max-h-[32rem] overflow-y-auto bg-[#0d1117] rounded-b-lg">
+      <div className="overflow-x-auto bg-[#0d1117] rounded-b-lg">
         <DiffViewer diff={tracker.diffOutput.value} />
       </div>
 
