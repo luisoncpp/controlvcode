@@ -1,6 +1,8 @@
+
 import { signal } from "@preact/signals";
 import { invoke } from "@tauri-apps/api/core";
 import type { AttachedFile } from "./types";
+import { resolveAllDependencies } from "./ReferenceResolver";
 
 export class PromptBuilder {
   public message = signal("");
@@ -53,21 +55,50 @@ export class PromptBuilder {
   async attachFile(path: string) {
     if (this.attachedFiles.value.some(f => f.path === path)) return;
 
+    const cache = new Map<string, string>();
+    const readFileProvider = async (p: string) => {
+      if (cache.has(p)) return cache.get(p)!;
+      const content = await invoke<string>("read_file_content", { path: p });
+      if (content === undefined) throw new Error("Exhausted mock protection");
+      cache.set(p, content);
+      return content;
+    };
+
     try {
-      const content = await invoke<string>("read_file_content", { path });
-      this.attachedFiles.value = [...this.attachedFiles.value, { path, content }];
-      
-      const cursorPos = this.message.value.lastIndexOf('@' + this.searchQuery.value);
-      if (cursorPos !== -1) {
-        this.message.value = this.message.value.substring(0, cursorPos) + 
-                            this.message.value.substring(cursorPos + 1 + this.searchQuery.value.length);
-      }
-      
-      this.showDropdown.value = false;
-      this.searchResults.value = [];
+      await readFileProvider(path); // Valida el archivo principal y mételo a caché
+      const allPaths = await resolveAllDependencies([path], readFileProvider);
+      await this.attachMultipleFiles(allPaths, readFileProvider);
+      this.clearSearchDropdown();
     } catch (e) {
       console.error("Error attaching file:", e);
     }
+  }
+
+  private async attachMultipleFiles(paths: string[], readFileProvider: (p: string) => Promise<string>) {
+    const newFiles: AttachedFile[] = [];
+    
+    for (const p of paths) {
+      if (this.attachedFiles.value.some(f => f.path === p)) continue;
+      try {
+        const content = await readFileProvider(p);
+        newFiles.push({ path: p, content });
+      } catch (e) {
+        console.warn(`Could not attach referenced file ${p}`);
+      }
+    }
+
+    this.attachedFiles.value = [...this.attachedFiles.value, ...newFiles];
+  }
+
+  private clearSearchDropdown() {
+    const cursorPos = this.message.value.lastIndexOf('@' + this.searchQuery.value);
+    if (cursorPos !== -1) {
+      this.message.value = this.message.value.substring(0, cursorPos) + 
+                          this.message.value.substring(cursorPos + 1 + this.searchQuery.value.length);
+    }
+    
+    this.showDropdown.value = false;
+    this.searchResults.value = [];
   }
 
   removeFile(path: string) {
