@@ -6,6 +6,12 @@ import { FileSearchDropdown } from "./FileSearchDropdown";
 export function PromptBuilderUI({ builder }: { builder: PromptBuilder }) {
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const handleToggle = () => {
+    setIsExpanded(!isExpanded);
+    setIsAnimating(true);
+  };
 
   const handleCopy = async () => {
     const success = await builder.copyToClipboard();
@@ -19,7 +25,7 @@ export function PromptBuilderUI({ builder }: { builder: PromptBuilder }) {
     <div className="border-t border-[#30363d] bg-[#161b22] flex flex-col">
       <div
         className="flex justify-between items-center p-4 cursor-pointer hover:bg-[#21262d] transition-colors duration-200"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={handleToggle}
       >
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-medium text-[#e6edf3]">Compositor de Prompts</h3>
@@ -43,8 +49,11 @@ export function PromptBuilderUI({ builder }: { builder: PromptBuilder }) {
         </button>
       </div>
 
-      <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-        <div className="overflow-hidden">
+      <div 
+        className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+        onTransitionEnd={() => setIsAnimating(false)}
+      >
+        <div className={isExpanded && !isAnimating ? "overflow-visible" : "overflow-hidden"}>
           <div className="px-4 pb-4 animate-fade-in-down">
             {builder.attachedFiles.value.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">

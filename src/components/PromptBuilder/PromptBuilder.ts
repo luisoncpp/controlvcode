@@ -23,7 +23,7 @@ export class PromptBuilder {
     const cursorPos = text.lastIndexOf('@');
     if (cursorPos !== -1) {
       const afterAt = text.substring(cursorPos + 1);
-      if (!afterAt.includes(' ') && afterAt.length > 0) {
+      if (!afterAt.includes(' ')) {
         this.searchQuery.value = afterAt;
         this.debounceSearch(afterAt);
         return;
